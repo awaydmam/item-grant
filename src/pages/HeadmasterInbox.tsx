@@ -1,0 +1,475 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Inbox, CheckCircle, XCircle, FileText, Calendar, User, Eye } from "lucide-react";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+export default function HeadmasterInbox() {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notes, setNotes] = useState("");
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const fetchRequests = async () => {
+    const { data } = await supabase
+      .from("borrow_requests")
+      .select(`
+        *,
+        request_items(
+          *,
+          item:items(name, code, department:departments(name))
+        ),
+        borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit, phone),
+        owner_reviewer:profiles!borrow_requests_owner_reviewed_by_fkey(full_name)
+      `)
+      .eq("status", "pending_headmaster")
+      .order("owner_reviewed_at", { ascending: false });
+
+    if (data) setRequests(data);
+    setLoading(false);
+  };
+
+  const generateLetterNumber = () => {
+    // Format: XXX/IG/MM/YYYY
+    const date = new Date();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    const number = String(Math.floor(Math.random() * 900) + 100);
+    return `${number}/IG/${month}/${year}`;
+  };
+
+  const handleApprove = async (requestId: string) => {
+    setProcessingId(requestId);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found");
+
+      const letterNumber = generateLetterNumber();
+
+      const { error } = await supabase
+        .from("borrow_requests")
+        .update({
+          status: "approved",
+          headmaster_notes: notes || null,
+          headmaster_approved_by: user.id,
+          headmaster_approved_at: new Date().toISOString(),
+          letter_number: letterNumber,
+          letter_generated_at: new Date().toISOString(),
+        })
+        .eq("id", requestId);
+
+      if (error) throw error;
+
+      toast.success(`Surat No. ${letterNumber} terbit—siap serah terima.`);
+      setNotes("");
+      fetchRequests();
+    } catch (error: any) {
+      toast.error(error.message || "Gagal menyetujui permintaan");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async (requestId: string) => {
+    if (!notes.trim()) {
+      toast.error("Mohon isi alasan penolakan");
+      return;
+    }
+
+    setProcessingId(requestId);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found");
+
+      // Get request items to restore availability
+      const { data: request } = await supabase
+        .from("borrow_requests")
+        .select("request_items(*)")
+        .eq("id", requestId)
+        .single();
+
+      const { error } = await supabase
+        .from("borrow_requests")
+        .update({
+          status: "rejected",
+          rejection_reason: notes,
+          headmaster_approved_by: user.id,
+          headmaster_approved_at: new Date().toISOString(),
+        })
+        .eq("id", requestId);
+
+      if (error) throw error;
+
+      // Restore item availability
+      if (request?.request_items) {
+        for (const item of request.request_items) {
+          const { data: currentItem } = await supabase
+            .from("items")
+            .select("available_quantity")
+            .eq("id", item.item_id)
+            .single();
+
+          if (currentItem) {
+            await supabase
+              .from("items")
+              .update({
+                available_quantity: currentItem.available_quantity + item.quantity,
+                status: "available"
+              })
+              .eq("id", item.item_id);
+          }
+        }
+      }
+
+      toast.success("Permintaan ditolak");
+      setNotes("");
+      fetchRequests();
+    } catch (error: any) {
+      toast.error(error.message || "Gagal menolak permintaan");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const LetterPreview = ({ request }: { request: any }) => {
+    const previewLetterNumber = generateLetterNumber();
+    
+    return (
+      <div className="space-y-4 p-6 bg-white text-black rounded-lg max-h-[70vh] overflow-y-auto">
+        {/* Header */}
+        <div className="text-center border-b-2 border-black pb-4">
+          <h2 className="text-xl font-bold">SEKOLAH [NAMA SEKOLAH]</h2>
+          <p className="text-sm">Jl. Alamat Sekolah, Kota, Provinsi</p>
+          <p className="text-sm">Telp: (021) xxxx-xxxx | Email: sekolah@example.com</p>
+        </div>
+
+        {/* Letter Info */}
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span>Nomor</span>
+            <span className="font-mono">: {previewLetterNumber} (akan digenerate)</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Tanggal</span>
+            <span>: {format(new Date(), "dd MMMM yyyy", { locale: id })}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Perihal</span>
+            <span>: <strong>Peminjaman Alat</strong></span>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="space-y-3 text-sm mt-6">
+          <p>Yang bertanda tangan di bawah ini:</p>
+          
+          <div className="ml-6 space-y-1">
+            <p>Nama : <strong>[Kepala Sekolah]</strong></p>
+            <p>Jabatan : <strong>Kepala Sekolah</strong></p>
+          </div>
+
+          <p>Menyetujui peminjaman alat dengan detail sebagai berikut:</p>
+
+          {/* Borrower Info */}
+          <div className="ml-6 space-y-1">
+            <p>Peminjam : <strong>{request.borrower?.full_name}</strong></p>
+            <p>Unit/Bagian : <strong>{request.borrower?.unit}</strong></p>
+            <p>Kontak : <strong>{request.borrower?.phone}</strong></p>
+          </div>
+
+          {/* Items */}
+          <p className="font-semibold mt-4">Daftar Alat:</p>
+          <table className="w-full border border-black text-xs">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="border border-black p-2 text-left">No</th>
+                <th className="border border-black p-2 text-left">Nama Alat</th>
+                <th className="border border-black p-2 text-center">Kode</th>
+                <th className="border border-black p-2 text-center">Jumlah</th>
+                <th className="border border-black p-2 text-left">Pemilik</th>
+              </tr>
+            </thead>
+            <tbody>
+              {request.request_items?.map((ri: any, idx: number) => (
+                <tr key={ri.id}>
+                  <td className="border border-black p-2">{idx + 1}</td>
+                  <td className="border border-black p-2">{ri.item?.name}</td>
+                  <td className="border border-black p-2 text-center">{ri.item?.code || "-"}</td>
+                  <td className="border border-black p-2 text-center">{ri.quantity}</td>
+                  <td className="border border-black p-2">{ri.item?.department?.name}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Usage Details */}
+          <div className="ml-6 space-y-1 mt-4">
+            <p>Keperluan : <strong>{request.purpose}</strong></p>
+            <p>Periode Pemakaian : <strong>{format(new Date(request.start_date), "dd MMMM yyyy", { locale: id })} - {format(new Date(request.end_date), "dd MMMM yyyy", { locale: id })}</strong></p>
+            {request.location_usage && (
+              <p>Lokasi Penggunaan : <strong>{request.location_usage}</strong></p>
+            )}
+            <p>Penanggung Jawab : <strong>{request.pic_name} ({request.pic_contact})</strong></p>
+          </div>
+
+          {/* Notes */}
+          <div className="mt-4 p-3 bg-gray-50 border border-gray-300 rounded text-xs">
+            <p className="font-semibold">Catatan Penting:</p>
+            <ul className="list-disc ml-5 mt-2 space-y-1">
+              <li>Peminjam wajib menjaga dan merawat alat dengan baik</li>
+              <li>Pengembalian harus tepat waktu sesuai periode yang disetujui</li>
+              <li>Kerusakan atau kehilangan menjadi tanggung jawab peminjam</li>
+            </ul>
+          </div>
+
+          {/* Signatures */}
+          <div className="grid grid-cols-2 gap-8 mt-8 text-center">
+            <div>
+              <p className="mb-16">Pemilik Alat</p>
+              <p className="font-semibold underline">{request.owner_reviewer?.full_name || "[Nama Pemilik]"}</p>
+              <p className="text-xs">TTD (akan ditambahkan otomatis)</p>
+            </div>
+            <div>
+              <p className="mb-16">Kepala Sekolah</p>
+              <p className="font-semibold underline">[Nama Kepala Sekolah]</p>
+              <p className="text-xs">TTD (akan ditambahkan otomatis)</p>
+            </div>
+          </div>
+
+          {/* QR Code Placeholder */}
+          <div className="mt-6 text-center">
+            <div className="inline-block p-3 border-2 border-black">
+              <div className="w-24 h-24 bg-gray-200 flex items-center justify-center">
+                <p className="text-xs">QR Code</p>
+              </div>
+            </div>
+            <p className="text-xs mt-2">Scan untuk verifikasi dokumen</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <p className="text-muted-foreground">Memuat...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  return (
+    <MainLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Kotak Masuk Kepala Sekolah</h1>
+          <p className="text-muted-foreground">
+            Review dan berikan persetujuan untuk penerbitan surat
+          </p>
+        </div>
+
+        {requests.length === 0 ? (
+          <Card className="neu-flat">
+            <CardContent className="py-12 text-center">
+              <Inbox className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">Tidak ada permintaan menunggu persetujuan</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {requests.map((request) => (
+              <Card key={request.id} className="neu-flat">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">
+                        {request.borrower?.full_name}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {request.borrower?.unit}
+                      </p>
+                    </div>
+                    <Badge className="bg-warning text-warning-foreground">
+                      Butuh Persetujuan
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Summary */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-start gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="font-medium">Keperluan</p>
+                        <p className="text-muted-foreground">{request.purpose}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="font-medium">Rentang Waktu</p>
+                        <p className="text-muted-foreground">
+                          {format(new Date(request.start_date), "dd MMM", { locale: id })} - {format(new Date(request.end_date), "dd MMM yyyy", { locale: id })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <User className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="font-medium">PJ</p>
+                        <p className="text-muted-foreground">{request.pic_name}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Items Count */}
+                  <div className="p-3 bg-muted/30 rounded-lg">
+                    <p className="text-sm font-medium">
+                      {request.request_items?.length || 0} Alat
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {request.request_items?.slice(0, 3).map((ri: any) => (
+                        <Badge key={ri.id} variant="outline" className="text-xs">
+                          {ri.item?.name}
+                        </Badge>
+                      ))}
+                      {request.request_items?.length > 3 && (
+                        <Badge variant="secondary" className="text-xs">
+                          +{request.request_items.length - 3} lainnya
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Owner Notes */}
+                  {request.owner_notes && (
+                    <div className="p-3 bg-muted/30 rounded-lg text-sm">
+                      <p className="font-medium mb-1">Catatan Pemilik:</p>
+                      <p className="text-muted-foreground">{request.owner_notes}</p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="space-y-3 pt-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full neu-flat"
+                          onClick={() => setSelectedRequest(request)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Lihat Surat
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-3xl">
+                        <DialogHeader>
+                          <DialogTitle>Preview Surat Peminjaman</DialogTitle>
+                          <DialogDescription>
+                            Surat akan terbit setelah Anda approve
+                          </DialogDescription>
+                        </DialogHeader>
+                        {selectedRequest && <LetterPreview request={selectedRequest} />}
+                      </DialogContent>
+                    </Dialog>
+
+                    <div>
+                      <Label htmlFor={`notes-${request.id}`} className="text-xs">
+                        Catatan (opsional)
+                      </Label>
+                      <Textarea
+                        id={`notes-${request.id}`}
+                        placeholder="Tambahkan catatan..."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        className="neu-sunken mt-2 text-sm"
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="flex-1"
+                            disabled={processingId === request.id}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Tolak
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Konfirmasi Penolakan</DialogTitle>
+                            <DialogDescription>
+                              Alasan penolakan akan dikirim ke pemohon
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label>Alasan Penolakan *</Label>
+                              <Textarea
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                placeholder="Jelaskan alasan..."
+                                className="mt-2"
+                              />
+                            </div>
+                            <Button
+                              variant="destructive"
+                              className="w-full"
+                              onClick={() => handleReject(request.id)}
+                              disabled={!notes.trim()}
+                            >
+                              Tolak Permintaan
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+
+                      <Button
+                        size="sm"
+                        onClick={() => handleApprove(request.id)}
+                        disabled={processingId === request.id}
+                        className="flex-1 neu-raised hover:neu-pressed bg-success text-success-foreground"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        {processingId === request.id ? "Memproses..." : "Setujui"}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </MainLayout>
+  );
+}
