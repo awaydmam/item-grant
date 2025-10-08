@@ -11,35 +11,46 @@ export default function PublicBoard() {
   const [activeLoans, setActiveLoans] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchLoans();
+    let isMounted = true;
+    
+    const loadActiveLoans = async () => {
+      try {
+        const { data } = await supabase
+          .from("borrow_requests")
+          .select(`
+            *,
+            request_items(*, item:items(name)),
+            borrower:profiles!borrow_requests_borrower_id_fkey(unit)
+          `)
+          .eq("status", "active")
+          .order("started_at", { ascending: false });
+
+        if (isMounted && data) {
+          setActiveLoans(data);
+        }
+      } catch (error) {
+        console.error("Error loading active loans:", error);
+      }
+    };
+
+    loadActiveLoans();
 
     // Realtime subscription
     const channel = supabase
       .channel("public-loans")
       .on("postgres_changes", 
         { event: "*", schema: "public", table: "borrow_requests" },
-        () => fetchLoans()
+        () => {
+          if (isMounted) loadActiveLoans();
+        }
       )
       .subscribe();
 
     return () => {
+      isMounted = false;
       supabase.removeChannel(channel);
     };
   }, []);
-
-  const fetchLoans = async () => {
-    const { data } = await supabase
-      .from("borrow_requests")
-      .select(`
-        *,
-        request_items(*, item:items(name)),
-        borrower:profiles!borrow_requests_borrower_id_fkey(unit)
-      `)
-      .eq("status", "active")
-      .order("started_at", { ascending: false });
-
-    if (data) setActiveLoans(data);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-16">

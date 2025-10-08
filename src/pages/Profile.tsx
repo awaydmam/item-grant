@@ -35,73 +35,56 @@ export default function Profile() {
   });
 
   useEffect(() => {
-    fetchUserData();
-    fetchStats();
-  }, []);
+    let isMounted = true;
+    
+    const loadAllData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !isMounted) return;
 
-  const fetchUserData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      // Get profile with email from auth
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+        // Fetch user profile and roles
+        const [profileResult, rolesResult] = await Promise.all([
+          supabase.from("profiles").select("*").eq("id", user.id).single(),
+          supabase.from("user_roles").select("role, department").eq("user_id", user.id)
+        ]);
 
-      // Get roles with department
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role, department")
-        .eq("user_id", user.id);
+        if (isMounted) {
+          if (profileResult.data) {
+            setUserProfile({
+              ...profileResult.data,
+              email: user.email,
+            });
+          }
+          if (rolesResult.data) setUserRoles(rolesResult.data);
+        }
 
-      if (profile) {
-        setUserProfile({
-          ...profile,
-          email: user.email, // Add email from auth
-        });
+        // Fetch stats
+        const [requestsCount, activeCount, completedCount, pendingCount] = await Promise.all([
+          supabase.from("borrow_requests").select("*", { count: "exact", head: true }).eq("borrower_id", user.id),
+          supabase.from("borrow_requests").select("*", { count: "exact", head: true }).eq("borrower_id", user.id).eq("status", "active"),
+          supabase.from("borrow_requests").select("*", { count: "exact", head: true }).eq("borrower_id", user.id).eq("status", "completed"),
+          supabase.from("borrow_requests").select("*", { count: "exact", head: true }).in("status", ["pending_owner", "pending_headmaster"])
+        ]);
+
+        if (isMounted) {
+          setStats({
+            totalRequests: requestsCount.count || 0,
+            activeLoans: activeCount.count || 0,
+            completedLoans: completedCount.count || 0,
+            pendingApprovals: pendingCount.count || 0,
+          });
+        }
+      } catch (error) {
+        console.error("Error loading profile data:", error);
       }
-      if (roles) setUserRoles(roles);
-    }
-  };
+    };
 
-  const fetchStats = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Total requests
-    const { count: requestsCount } = await supabase
-      .from("borrow_requests")
-      .select("*", { count: "exact", head: true })
-      .eq("borrower_id", user.id);
-
-    // Active loans
-    const { count: activeCount } = await supabase
-      .from("borrow_requests")
-      .select("*", { count: "exact", head: true })
-      .eq("borrower_id", user.id)
-      .eq("status", "active");
-
-    // Completed loans
-    const { count: completedCount } = await supabase
-      .from("borrow_requests")
-      .select("*", { count: "exact", head: true })
-      .eq("borrower_id", user.id)
-      .eq("status", "completed");
-
-    // Pending approvals (if owner or headmaster)
-    const { count: pendingCount } = await supabase
-      .from("borrow_requests")
-      .select("*", { count: "exact", head: true })
-      .in("status", ["pending_owner", "pending_headmaster"]);
-
-    setStats({
-      totalRequests: requestsCount || 0,
-      activeLoans: activeCount || 0,
-      completedLoans: completedCount || 0,
-      pendingApprovals: pendingCount || 0,
-    });
-  };
+    loadAllData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();

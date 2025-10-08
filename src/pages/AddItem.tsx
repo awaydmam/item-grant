@@ -7,23 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   ArrowLeft, 
   Package, 
   Save, 
-  ImageIcon, 
   RefreshCw,
-  Upload,
-  Eye,
   AlertCircle,
   Camera,
   X
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
-import { MainLayout } from "@/components/layout/MainLayout";
 
 interface Category {
   id: string;
@@ -44,7 +39,7 @@ interface FormData {
   quantity: number;
   location: string;
   image_url: string;
-  status: "available" | "unavailable" | "maintenance" | "reserved" | "borrowed" | "damaged" | "lost";
+  status: "available" | "maintenance" | "reserved" | "borrowed" | "damaged" | "lost";
 }
 
 interface FormErrors {
@@ -93,99 +88,79 @@ export default function AddItem() {
     return `${prefix}-${timestamp}-${random}`;
   }, [formData.category_id]);
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("*")
-        .order("name");
-      
-      if (error) throw error;
-      setCategories(data || []);
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-      toast.error("Gagal mengambil data kategori");
-    }
-  }, []);
-
-  const fetchDepartments = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("departments")
-        .select("*")
-        .order("name");
-      
-      if (error) throw error;
-      setDepartments(data || []);
-    } catch (error) {
-      console.error("Error fetching departments:", error);
-      toast.error("Gagal mengambil data departemen");
-    }
-  }, []);
-
-  const fetchItemData = useCallback(async () => {
-    if (!isEditMode || !id) return;
-    
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("items")
-        .select("*")
-        .eq("id", id)
-        .single();
-      
-      if (error) throw error;
-      
-      if (data) {
-        setFormData({
-          name: data.name || "",
-          code: data.code || "",
-          description: data.description || "",
-          category_id: data.category_id || "",
-          department_id: data.department_id || "",
-          quantity: data.quantity || 1,
-          location: data.location || "",
-          image_url: data.image_url || "",
-          status: data.status || "available"
-        });
-        setPreviewImage(data.image_url || "");
-      }
-    } catch (error) {
-      console.error("Error fetching item:", error);
-      toast.error("Gagal mengambil data barang");
-      navigate("/manage-inventory");
-    } finally {
-      setLoading(false);
-    }
-  }, [isEditMode, id, navigate]);
-
   useEffect(() => {
+    let isMounted = true;
+    
     const loadData = async () => {
-      await Promise.all([
-        fetchCategories(),
-        fetchDepartments(),
-        fetchItemData()
-      ]);
-      
-      // Set default department for owner (using department name, not ID)
-      if (!isEditMode && isOwner() && !isAdmin()) {
-        const userDeptName = getUserDepartment();
-        console.log('Setting default department for owner:', userDeptName);
-        if (userDeptName) {
-          // Find department ID from name
-          const dept = departments.find(d => d.name === userDeptName);
-          if (dept) {
-            setFormData(prev => ({ ...prev, department_id: dept.id }));
-            console.log('Default department set:', dept.id);
+      try {
+        setLoading(true);
+        
+        // Fetch categories and departments
+        const [categoriesResult, departmentsResult] = await Promise.all([
+          supabase.from("categories").select("*").order("name"),
+          supabase.from("departments").select("*").order("name")
+        ]);
+
+        if (isMounted) {
+          if (categoriesResult.data) setCategories(categoriesResult.data);
+          if (departmentsResult.data) setDepartments(departmentsResult.data);
+        }
+
+        // If editing, fetch item data
+        if (isEditMode && id && isMounted) {
+          const { data, error } = await supabase
+            .from("items")
+            .select("*")
+            .eq("id", id)
+            .single();
+          
+          if (error) throw error;
+          
+          if (data) {
+            setFormData({
+              name: data.name || "",
+              code: data.code || "",
+              description: data.description || "",
+              category_id: data.category_id || "",
+              department_id: data.department_id || "",
+              quantity: data.quantity || 1,
+              location: data.location || "",
+              image_url: data.image_url || "",
+              status: data.status || "available"
+            });
+            setPreviewImage(data.image_url || "");
           }
         }
+
+        // Set default department for owner
+        if (!isEditMode && isOwner() && !isAdmin() && departmentsResult.data) {
+          const userDeptName = getUserDepartment();
+          if (userDeptName) {
+            const dept = departmentsResult.data.find(d => d.name === userDeptName);
+            if (dept && isMounted) {
+              setFormData(prev => ({ ...prev, department_id: dept.id }));
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast.error("Gagal memuat data");
+        if (isEditMode) {
+          navigate("/manage-inventory");
+        }
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
     
     if (!roleLoading) {
       loadData();
     }
-  }, [roleLoading, fetchCategories, fetchDepartments, fetchItemData, isEditMode, isOwner, isAdmin, getUserDepartment, departments]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [roleLoading, isEditMode, id, navigate, isOwner, isAdmin, getUserDepartment]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -258,7 +233,6 @@ export default function AddItem() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Create preview
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
@@ -271,223 +245,235 @@ export default function AddItem() {
 
   if (roleLoading || loading) {
     return (
-      <MainLayout>
-        <div className="container mx-auto p-6">
-          <div className="flex justify-center items-center h-64">
-            <div className="text-center space-y-4">
-              <Package className="h-12 w-12 text-gray-400 mx-auto animate-pulse" />
-              <p className="text-gray-500">
-                {loading ? "Memuat data barang..." : "Memuat..."}
-              </p>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+            <Package className="h-8 w-8 text-blue-600 animate-pulse" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-gray-800">
+              {loading ? "Memuat Data Barang..." : "Memuat..."}
+            </h3>
+            <p className="text-gray-600">Silakan tunggu sebentar</p>
           </div>
         </div>
-      </MainLayout>
+      </div>
     );
   }
 
   return (
-    <MainLayout>
-      <div className="container mx-auto p-6 max-w-4xl">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate("/manage-inventory")}
-            className="p-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              {isEditMode ? "Edit Barang" : "Tambah Barang"}
-            </h1>
-            <p className="text-gray-600 mt-1">
-              {isEditMode ? "Perbarui informasi barang inventaris" : "Tambahkan barang baru ke inventaris"}
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Mobile-First Header */}
+      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+        <div className="flex items-center justify-between p-4 max-w-lg mx-auto lg:max-w-4xl">
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate("/manage-inventory")}
+              className="rounded-full p-2 hover:bg-gray-100"
+            >
+              <ArrowLeft className="h-5 w-5 text-gray-700" />
+            </Button>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 lg:text-xl">
+                {isEditMode ? "Edit Barang" : "Tambah Barang"}
+              </h1>
+              <p className="text-xs text-gray-600 lg:text-sm">
+                {isEditMode ? "Perbarui barang" : "Barang baru"}
+              </p>
+            </div>
+          </div>
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 rounded-xl flex items-center justify-center">
+            <Package className="h-5 w-5 text-blue-600" />
           </div>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Form */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Basic Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5" />
-                    Informasi Dasar
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="name">Nama Barang *</Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) => handleInputChange("name", e.target.value)}
-                        placeholder="Masukkan nama barang"
-                        className={errors.name ? "border-red-500" : ""}
-                      />
-                      {errors.name && <p className="text-sm text-red-500 mt-1">{errors.name}</p>}
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="code">Kode Barang *</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="code"
-                          value={formData.code}
-                          onChange={(e) => handleInputChange("code", e.target.value)}
-                          placeholder="Kode unik barang"
-                          className={errors.code ? "border-red-500" : ""}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => handleInputChange("code", generateCode())}
-                          className="px-3"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {errors.code && <p className="text-sm text-red-500 mt-1">{errors.code}</p>}
-                    </div>
-                  </div>
+      {/* Form Container */}
+      <div className="p-4 max-w-lg mx-auto lg:max-w-2xl pb-24">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Basic Information Card */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Package className="h-4 w-4 text-blue-600" />
+                Informasi Dasar
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="name" className="text-sm font-medium text-gray-700">Nama Barang *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  placeholder="Masukkan nama barang"
+                  className={`mt-1 ${errors.name ? "border-red-500" : ""}`}
+                />
+                {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+              </div>
+              
+              <div>
+                <Label htmlFor="code" className="text-sm font-medium text-gray-700">Kode Barang *</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    id="code"
+                    value={formData.code}
+                    onChange={(e) => handleInputChange("code", e.target.value)}
+                    placeholder="Kode unik barang"
+                    className={errors.code ? "border-red-500" : ""}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleInputChange("code", generateCode())}
+                    className="px-3 shrink-0"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+                {errors.code && <p className="text-xs text-red-500 mt-1">{errors.code}</p>}
+              </div>
 
-                  <div>
-                    <Label htmlFor="description">Deskripsi</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => handleInputChange("description", e.target.value)}
-                      placeholder="Deskripsi detail barang (opsional)"
-                      rows={3}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+              <div>
+                <Label htmlFor="description" className="text-sm font-medium text-gray-700">Deskripsi</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange("description", e.target.value)}
+                  placeholder="Deskripsi detail barang (opsional)"
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-              {/* Classification */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Klasifikasi</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="category">Kategori *</Label>
-                      <Select
-                        value={formData.category_id}
-                        onValueChange={(value) => handleInputChange("category_id", value)}
-                      >
-                        <SelectTrigger className={errors.category_id ? "border-red-500" : ""}>
-                          <SelectValue placeholder="Pilih kategori" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map(category => (
-                            <SelectItem key={category.id} value={category.id}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.category_id && <p className="text-sm text-red-500 mt-1">{errors.category_id}</p>}
-                    </div>
+          {/* Classification Card */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Klasifikasi</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="category" className="text-sm font-medium text-gray-700">Kategori *</Label>
+                <Select
+                  value={formData.category_id}
+                  onValueChange={(value) => handleInputChange("category_id", value)}
+                >
+                  <SelectTrigger className={`mt-1 ${errors.category_id ? "border-red-500" : ""}`}>
+                    <SelectValue placeholder="Pilih kategori" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(category => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.category_id && <p className="text-xs text-red-500 mt-1">{errors.category_id}</p>}
+              </div>
 
-                    <div>
-                      <Label htmlFor="department">Departemen *</Label>
-                      <Select
-                        value={formData.department_id}
-                        onValueChange={(value) => handleInputChange("department_id", value)}
-                        disabled={isOwner() && !isAdmin()}
-                      >
-                        <SelectTrigger className={errors.department_id ? "border-red-500" : ""}>
-                          <SelectValue placeholder="Pilih departemen" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {departments.map(dept => (
-                            <SelectItem key={dept.id} value={dept.id}>
-                              {dept.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.department_id && <p className="text-sm text-red-500 mt-1">{errors.department_id}</p>}
-                      {isOwner() && !isAdmin() && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          Departemen otomatis sesuai role Anda
-                        </p>
-                      )}
-                    </div>
-                  </div>
+              <div>
+                <Label htmlFor="department" className="text-sm font-medium text-gray-700">Departemen *</Label>
+                <Select
+                  value={formData.department_id}
+                  onValueChange={(value) => handleInputChange("department_id", value)}
+                  disabled={isOwner() && !isAdmin()}
+                >
+                  <SelectTrigger className={`mt-1 ${errors.department_id ? "border-red-500" : ""}`}>
+                    <SelectValue placeholder="Pilih departemen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map(department => (
+                      <SelectItem key={department.id} value={department.id}>
+                        {department.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.department_id && <p className="text-xs text-red-500 mt-1">{errors.department_id}</p>}
+                {isOwner() && !isAdmin() && (
+                  <p className="text-xs text-gray-500 mt-1">Departemen otomatis sesuai role Anda</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="quantity">Jumlah *</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        min="1"
-                        value={formData.quantity}
-                        onChange={(e) => handleInputChange("quantity", parseInt(e.target.value) || 1)}
-                        className={errors.quantity ? "border-red-500" : ""}
-                      />
-                      {errors.quantity && <p className="text-sm text-red-500 mt-1">{errors.quantity}</p>}
-                    </div>
+          {/* Details Card */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Detail Barang</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="quantity" className="text-sm font-medium text-gray-700">Jumlah *</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    min="1"
+                    value={formData.quantity}
+                    onChange={(e) => handleInputChange("quantity", parseInt(e.target.value) || 1)}
+                    className={`mt-1 ${errors.quantity ? "border-red-500" : ""}`}
+                  />
+                  {errors.quantity && <p className="text-xs text-red-500 mt-1">{errors.quantity}</p>}
+                </div>
 
-                    <div>
-                      <Label htmlFor="status">Status</Label>
-                      <Select
-                        value={formData.status}
-                        onValueChange={(value) => handleInputChange("status", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="available">Tersedia</SelectItem>
-                          <SelectItem value="maintenance">Perawatan</SelectItem>
-                          <SelectItem value="unavailable">Tidak Tersedia</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                <div>
+                  <Label htmlFor="status" className="text-sm font-medium text-gray-700">Status</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => handleInputChange("status", value)}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="available">Tersedia</SelectItem>
+                      <SelectItem value="maintenance">Maintenance</SelectItem>
+                      <SelectItem value="reserved">Reserved</SelectItem>
+                      <SelectItem value="damaged">Rusak</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-                    <div>
-                      <Label htmlFor="location">Lokasi *</Label>
-                      <Input
-                        id="location"
-                        value={formData.location}
-                        onChange={(e) => handleInputChange("location", e.target.value)}
-                        placeholder="Lokasi penyimpanan"
-                        className={errors.location ? "border-red-500" : ""}
-                      />
-                      {errors.location && <p className="text-sm text-red-500 mt-1">{errors.location}</p>}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+              <div>
+                <Label htmlFor="location" className="text-sm font-medium text-gray-700">Lokasi *</Label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => handleInputChange("location", e.target.value)}
+                  placeholder="Contoh: Ruang Lab IPA, Lantai 2"
+                  className={`mt-1 ${errors.location ? "border-red-500" : ""}`}
+                />
+                {errors.location && <p className="text-xs text-red-500 mt-1">{errors.location}</p>}
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Image Upload */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Camera className="h-5 w-5" />
-                    Foto Barang
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+          {/* Image Upload Card */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Camera className="h-4 w-4 text-blue-600" />
+                Foto Barang
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="image" className="text-sm font-medium text-gray-700">Upload Gambar</Label>
+                <div className="mt-2">
                   {previewImage ? (
                     <div className="relative">
-                      <img
-                        src={previewImage}
-                        alt="Preview"
-                        className="w-full h-48 object-cover rounded-lg border"
+                      <img 
+                        src={previewImage} 
+                        alt="Preview" 
+                        className="w-full h-32 object-cover rounded-lg border"
                       />
                       <Button
                         type="button"
@@ -497,95 +483,79 @@ export default function AddItem() {
                           setPreviewImage("");
                           setFormData(prev => ({ ...prev, image_url: "" }));
                         }}
-                        className="absolute top-2 right-2 p-2"
+                        className="absolute top-2 right-2 p-1"
                       >
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
                   ) : (
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                      <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-sm text-gray-500 mb-4">
-                        Belum ada foto barang
-                      </p>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
+                      <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600 mb-2">Upload foto barang</p>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        id="image-upload"
+                      />
+                      <Label 
+                        htmlFor="image-upload" 
+                        className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                      >
+                        Pilih Gambar
+                      </Label>
                     </div>
                   )}
-                  
-                  <div>
-                    <Label htmlFor="image" className="cursor-pointer">
-                      <div className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-blue-400 transition-colors">
-                        <Upload className="h-4 w-4" />
-                        <span className="text-sm">Upload Foto</span>
-                      </div>
-                    </Label>
-                    <input
-                      id="image"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      aria-label="Upload foto barang"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="image_url">Atau URL Gambar</Label>
-                    <Input
-                      id="image_url"
-                      value={formData.image_url}
-                      onChange={(e) => {
-                        handleInputChange("image_url", e.target.value);
-                        setPreviewImage(e.target.value);
-                      }}
-                      placeholder="https://example.com/image.jpg"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Format: JPG, PNG (Max 5MB)</p>
+              </div>
+            </CardContent>
+          </Card>
 
-              {/* Action Buttons */}
-              <Card>
-                <CardContent className="p-4 space-y-3">
-                  <Button
-                    type="submit"
-                    disabled={saving}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                  >
-                    {saving ? (
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    {saving 
-                      ? (isEditMode ? "Menyimpan..." : "Menambahkan...") 
-                      : (isEditMode ? "Simpan Perubahan" : "Tambah Barang")
-                    }
-                  </Button>
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => navigate("/manage-inventory")}
-                    className="w-full"
-                    disabled={saving}
-                  >
-                    Batal
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Help */}
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Tips:</strong> Pastikan semua informasi sudah benar sebelum menyimpan. 
-                  Kode barang harus unik dan tidak boleh sama dengan barang lain.
-                </AlertDescription>
-              </Alert>
-            </div>
-          </div>
+          {/* Helper Alert */}
+          <Alert className="bg-blue-50 border-blue-200">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              <strong>Tips:</strong> Pastikan semua informasi sudah benar sebelum menyimpan. 
+              Kode barang harus unik dan tidak boleh sama dengan barang lain.
+            </AlertDescription>
+          </Alert>
         </form>
       </div>
-    </MainLayout>
+
+      {/* Sticky Action Buttons */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 p-4 z-40">
+        <div className="flex gap-3 max-w-lg mx-auto lg:max-w-2xl">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate("/manage-inventory")}
+            disabled={saving}
+            className="flex-1"
+          >
+            Batal
+          </Button>
+          <Button
+            type="submit"
+            disabled={saving}
+            className="flex-1 bg-blue-600 hover:bg-blue-700"
+            onClick={handleSubmit}
+          >
+            {saving ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                {isEditMode ? "Memperbarui..." : "Menyimpan..."}
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                {isEditMode ? "Perbarui" : "Simpan"}
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

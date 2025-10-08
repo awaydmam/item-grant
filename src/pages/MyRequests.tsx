@@ -13,31 +13,44 @@ export default function MyRequests() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchRequests();
+    let isMounted = true;
+    
+    const loadRequests = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !isMounted) return;
+
+        const { data } = await supabase
+          .from("borrow_requests")
+          .select(`
+            *,
+            request_items(
+              *,
+              item:items(name, code)
+            ),
+            borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit),
+            owner_reviewer:profiles!borrow_requests_owner_reviewed_by_fkey(full_name),
+            headmaster_approver:profiles!borrow_requests_headmaster_approved_by_fkey(full_name)
+          `)
+          .eq("borrower_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (isMounted && data) {
+          setRequests(data);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Error loading requests:", error);
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadRequests();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
-
-  const fetchRequests = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("borrow_requests")
-      .select(`
-        *,
-        request_items(
-          *,
-          item:items(name, code)
-        ),
-        borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit),
-        owner_reviewer:profiles!borrow_requests_owner_reviewed_by_fkey(full_name),
-        headmaster_approver:profiles!borrow_requests_headmaster_approved_by_fkey(full_name)
-      `)
-      .eq("borrower_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (data) setRequests(data);
-    setLoading(false);
-  };
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; variant: any }> = {
