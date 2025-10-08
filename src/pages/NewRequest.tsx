@@ -1,73 +1,61 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { MainLayout } from "@/components/layout/MainLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { id } from "date-fns/locale";
-import { CalendarIcon, Plus, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { CalendarIcon, X, ArrowLeft, Package } from "lucide-react";
+import { toast } from "sonner";
+import { BottomNav } from "@/components/layout/BottomNav";
 
 export default function NewRequest() {
   const navigate = useNavigate();
   const location = useLocation();
-  const preselectedItemId = location.state?.itemId;
-
   const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState<any[]>([]);
-  const [selectedItems, setSelectedItems] = useState<Array<{ item_id: string; quantity: number }>>([]);
+  const cartItems = location.state?.cartItems || [];
+
   const [formData, setFormData] = useState({
     purpose: "",
-    start_date: new Date(),
-    end_date: new Date(),
     location_usage: "",
     pic_name: "",
     pic_contact: "",
   });
 
+  const [selectedItems, setSelectedItems] = useState<any[]>(
+    cartItems.map((item: any) => ({
+      item_id: item.id,
+      quantity: item.requestedQuantity,
+      name: item.name,
+      available_quantity: item.available_quantity,
+    }))
+  );
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
+
   useEffect(() => {
-    fetchItems();
-    if (preselectedItemId) {
-      setSelectedItems([{ item_id: preselectedItemId, quantity: 1 }]);
+    if (cartItems.length === 0) {
+      navigate("/inventory");
     }
-  }, [preselectedItemId]);
-
-  const fetchItems = async () => {
-    const { data } = await supabase
-      .from("items")
-      .select("id, name, available_quantity")
-      .eq("status", "available")
-      .order("name");
-    
-    if (data) setItems(data);
-  };
-
-  const addItem = () => {
-    setSelectedItems([...selectedItems, { item_id: "", quantity: 1 }]);
-  };
+  }, [cartItems, navigate]);
 
   const removeItem = (index: number) => {
     setSelectedItems(selectedItems.filter((_, i) => i !== index));
   };
 
-  const updateItem = (index: number, field: string, value: any) => {
-    const updated = [...selectedItems];
-    updated[index] = { ...updated[index], [field]: value };
-    setSelectedItems(updated);
+  const updateItemQuantity = (index: number, quantity: number) => {
+    const newItems = [...selectedItems];
+    newItems[index] = { ...newItems[index], quantity };
+    setSelectedItems(newItems);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (selectedItems.length === 0 || selectedItems.some(item => !item.item_id)) {
-      toast.error("Pilih minimal satu alat");
+  const handleSubmit = async () => {
+    if (!formData.purpose || !startDate || !endDate || !formData.pic_name || !formData.pic_contact) {
+      toast.error("Mohon lengkapi semua field yang wajib diisi");
       return;
     }
 
@@ -75,7 +63,7 @@ export default function NewRequest() {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not found");
+      if (!user) throw new Error("User not authenticated");
 
       // Create request
       const { data: request, error: requestError } = await supabase
@@ -84,8 +72,8 @@ export default function NewRequest() {
           borrower_id: user.id,
           status: "pending_owner",
           purpose: formData.purpose,
-          start_date: format(formData.start_date, "yyyy-MM-dd"),
-          end_date: format(formData.end_date, "yyyy-MM-dd"),
+          start_date: format(startDate, "yyyy-MM-dd"),
+          end_date: format(endDate, "yyyy-MM-dd"),
           location_usage: formData.location_usage,
           pic_name: formData.pic_name,
           pic_contact: formData.pic_contact,
@@ -108,26 +96,7 @@ export default function NewRequest() {
 
       if (itemsError) throw itemsError;
 
-      // Update item availability to reserved
-      for (const item of selectedItems) {
-        const { data: currentItem } = await supabase
-          .from("items")
-          .select("available_quantity")
-          .eq("id", item.item_id)
-          .single();
-
-        if (currentItem) {
-          await supabase
-            .from("items")
-            .update({
-              available_quantity: currentItem.available_quantity - item.quantity,
-              status: currentItem.available_quantity - item.quantity === 0 ? "reserved" : "available"
-            })
-            .eq("id", item.item_id);
-        }
-      }
-
-      toast.success("Permintaan terkirim. Menunggu verifikasi Pemilik Alat.");
+      toast.success("Permintaan berhasil diajukan!");
       navigate("/my-requests");
     } catch (error: any) {
       console.error("Error:", error);
@@ -138,199 +107,223 @@ export default function NewRequest() {
   };
 
   return (
-    <MainLayout>
-      <div className="max-w-3xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Ajukan Peminjaman</h1>
-          <p className="text-muted-foreground">Isi form untuk mengajukan peminjaman alat</p>
+    <div className="min-h-screen bg-background pb-32">
+      {/* Header */}
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="container-mobile py-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/inventory")}
+              className="neu-flat"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold">Checkout Request</h1>
+          </div>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit}>
-          <Card className="neu-flat">
-            <CardHeader>
-              <CardTitle>Detail Peminjaman</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Items Selection */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <Label>Alat yang Dipinjam</Label>
-                  <Button type="button" size="sm" onClick={addItem} className="neu-raised">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Tambah Alat
-                  </Button>
+      <div className="container-mobile py-4 space-y-6">
+        {/* Selected Items */}
+        <Card className="neu-raised">
+          <CardHeader>
+            <CardTitle className="text-lg">Selected Items ({selectedItems.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {selectedItems.map((item, index) => (
+              <div
+                key={index}
+                className="flex gap-3 p-3 border border-border rounded-lg"
+              >
+                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center neu-sunken">
+                  <Package className="h-8 w-8 text-muted-foreground" />
                 </div>
-
-                {selectedItems.map((item, index) => (
-                  <div key={index} className="flex gap-2 items-end">
-                    <div className="flex-1">
-                      <Label className="text-xs">Nama Alat</Label>
-                      <select
-                        value={item.item_id}
-                        onChange={(e) => updateItem(index, "item_id", e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg neu-sunken"
-                        required
-                      >
-                        <option value="">Pilih alat...</option>
-                        {items.map((i) => (
-                          <option key={i.id} value={i.id}>
-                            {i.name} (Tersedia: {i.available_quantity})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="w-24">
-                      <Label className="text-xs">Jumlah</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value))}
-                        className="neu-sunken"
-                        required
-                      />
+                
+                <div className="flex-1">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h4 className="font-semibold">{item.name}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Available: {item.available_quantity}
+                      </p>
                     </div>
                     <Button
-                      type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => removeItem(index)}
-                      className="neu-flat hover:neu-pressed"
+                      className="h-8 w-8"
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
-                ))}
-              </div>
-
-              {/* Purpose */}
-              <div className="space-y-2">
-                <Label htmlFor="purpose">Keperluan</Label>
-                <Textarea
-                  id="purpose"
-                  value={formData.purpose}
-                  onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                  placeholder="Jelaskan keperluan peminjaman..."
-                  required
-                  className="neu-sunken"
-                />
-              </div>
-
-              {/* Dates */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Tanggal Mulai Pakai</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={cn("w-full justify-start text-left font-normal neu-sunken", 
-                          !formData.start_date && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.start_date ? format(formData.start_date, "PPP", { locale: id }) : "Pilih tanggal"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formData.start_date}
-                        onSelect={(date) => date && setFormData({ ...formData, start_date: date })}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Tanggal Kembali</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={cn("w-full justify-start text-left font-normal neu-sunken",
-                          !formData.end_date && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.end_date ? format(formData.end_date, "PPP", { locale: id }) : "Pilih tanggal"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formData.end_date}
-                        onSelect={(date) => date && setFormData({ ...formData, end_date: date })}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => updateItemQuantity(index, Math.max(1, item.quantity - 1))}
+                      className="h-8 w-8 p-0"
+                    >
+                      -
+                    </Button>
+                    <span className="font-semibold w-8 text-center">
+                      {item.quantity}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => updateItemQuantity(index, Math.min(item.available_quantity, item.quantity + 1))}
+                      disabled={item.quantity >= item.available_quantity}
+                      className="h-8 w-8 p-0"
+                    >
+                      +
+                    </Button>
+                  </div>
                 </div>
               </div>
+            ))}
+          </CardContent>
+        </Card>
 
-              {/* Location */}
-              <div className="space-y-2">
-                <Label htmlFor="location">Lokasi Penggunaan</Label>
-                <Input
-                  id="location"
-                  value={formData.location_usage}
-                  onChange={(e) => setFormData({ ...formData, location_usage: e.target.value })}
-                  placeholder="Contoh: Aula lantai 2"
-                  className="neu-sunken"
-                />
+        {/* Request Details Form */}
+        <Card className="neu-raised">
+          <CardHeader>
+            <CardTitle className="text-lg">Request Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="purpose">Purpose / Reason *</Label>
+              <Textarea
+                id="purpose"
+                value={formData.purpose}
+                onChange={(e) =>
+                  setFormData({ ...formData, purpose: e.target.value })
+                }
+                placeholder="Describe the purpose of borrowing..."
+                className="min-h-24 neu-sunken"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Start Date *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal neu-sunken"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? (
+                        format(startDate, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={setStartDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
-              {/* PIC Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="pic_name">Nama Penanggung Jawab</Label>
-                  <Input
-                    id="pic_name"
-                    value={formData.pic_name}
-                    onChange={(e) => setFormData({ ...formData, pic_name: e.target.value })}
-                    required
-                    className="neu-sunken"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="pic_contact">Kontak PJ (WA/Telp)</Label>
-                  <Input
-                    id="pic_contact"
-                    value={formData.pic_contact}
-                    onChange={(e) => setFormData({ ...formData, pic_contact: e.target.value })}
-                    required
-                    placeholder="08xx xxxx xxxx"
-                    className="neu-sunken"
-                  />
-                </div>
+              <div>
+                <Label>End Date *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal neu-sunken"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={setEndDate}
+                      initialFocus
+                      disabled={(date) =>
+                        startDate ? date < startDate : false
+                      }
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
+            </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate(-1)}
-                  className="flex-1 neu-flat"
-                >
-                  Batal
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 neu-raised hover:neu-pressed"
-                >
-                  {loading ? "Mengirim..." : "Ajukan Permintaan"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </form>
+            <div>
+              <Label htmlFor="location_usage">Location of Usage *</Label>
+              <Input
+                id="location_usage"
+                value={formData.location_usage}
+                onChange={(e) =>
+                  setFormData({ ...formData, location_usage: e.target.value })
+                }
+                placeholder="Where will the items be used?"
+                className="neu-sunken"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="pic_name">Person in Charge (PIC) *</Label>
+              <Input
+                id="pic_name"
+                value={formData.pic_name}
+                onChange={(e) =>
+                  setFormData({ ...formData, pic_name: e.target.value })
+                }
+                placeholder="Name of responsible person"
+                className="neu-sunken"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="pic_contact">Contact Number *</Label>
+              <Input
+                id="pic_contact"
+                value={formData.pic_contact}
+                onChange={(e) =>
+                  setFormData({ ...formData, pic_contact: e.target.value })
+                }
+                placeholder="Phone number"
+                className="neu-sunken"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Submit Button */}
+        <div className="space-y-3 pb-4">
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? "Submitting..." : "Submit Request"}
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full"
+            onClick={() => navigate("/inventory")}
+          >
+            Back to Inventory
+          </Button>
+        </div>
       </div>
-    </MainLayout>
+
+      <BottomNav />
+    </div>
   );
 }

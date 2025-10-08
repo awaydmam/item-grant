@@ -1,99 +1,147 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { MainLayout } from "@/components/layout/MainLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Package, Filter } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Search, ShoppingCart, Filter, Package } from "lucide-react";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+interface Item {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  available_quantity: number;
+  status: string;
+  image_url: string;
+  category_id: string;
+  department_id: string;
+  categories: { name: string } | null;
+  departments: { name: string } | null;
+}
+
+interface CartItem extends Item {
+  requestedQuantity: number;
+}
+
 export default function Inventory() {
-  const [items, setItems] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
+  const navigate = useNavigate();
+  const [items, setItems] = useState<Item[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
-  const navigate = useNavigate();
+  const [categories, setCategories] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
-    // Fetch items
-    const { data: itemsData } = await supabase
-      .from("items")
-      .select(`
-        *,
-        category:categories(name),
-        department:departments(name)
-      `)
-      .eq("status", "available")
-      .order("name");
+    const [itemsRes, categoriesRes, departmentsRes] = await Promise.all([
+      supabase.from("items").select("*, categories(name), departments(name)"),
+      supabase.from("categories").select("*"),
+      supabase.from("departments").select("*")
+    ]);
 
-    if (itemsData) setItems(itemsData);
-
-    // Fetch categories
-    const { data: categoriesData } = await supabase
-      .from("categories")
-      .select("*")
-      .order("name");
-    if (categoriesData) setCategories(categoriesData);
-
-    // Fetch departments
-    const { data: departmentsData } = await supabase
-      .from("departments")
-      .select("*")
-      .order("name");
-    if (departmentsData) setDepartments(departmentsData);
+    if (itemsRes.data) setItems(itemsRes.data);
+    if (categoriesRes.data) setCategories(categoriesRes.data);
+    if (departmentsRes.data) setDepartments(departmentsRes.data);
   };
 
-  const filteredItems = items.filter((item) => {
+  const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          item.description?.toLowerCase().includes(searchTerm.toLowerCase());
+                         item.code?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "all" || item.category_id === selectedCategory;
     const matchesDepartment = selectedDepartment === "all" || item.department_id === selectedDepartment;
     
-    return matchesSearch && matchesCategory && matchesDepartment;
+    return matchesSearch && matchesCategory && matchesDepartment && item.available_quantity > 0;
   });
 
-  const getStatusBadge = (availableQty: number, totalQty: number) => {
-    if (availableQty === 0) return <Badge variant="destructive">Tidak Tersedia</Badge>;
-    if (availableQty < totalQty / 2) return <Badge variant="secondary">Terbatas</Badge>;
-    return <Badge className="bg-success text-success-foreground">Tersedia</Badge>;
+  const addToCart = (item: Item) => {
+    const existingItem = cart.find(i => i.id === item.id);
+    if (existingItem) {
+      if (existingItem.requestedQuantity < item.available_quantity) {
+        setCart(cart.map(i => 
+          i.id === item.id 
+            ? { ...i, requestedQuantity: i.requestedQuantity + 1 }
+            : i
+        ));
+      }
+    } else {
+      setCart([...cart, { ...item, requestedQuantity: 1 }]);
+    }
+  };
+
+  const removeFromCart = (itemId: string) => {
+    const item = cart.find(i => i.id === itemId);
+    if (item && item.requestedQuantity > 1) {
+      setCart(cart.map(i => 
+        i.id === itemId 
+          ? { ...i, requestedQuantity: i.requestedQuantity - 1 }
+          : i
+      ));
+    } else {
+      setCart(cart.filter(i => i.id !== itemId));
+    }
+  };
+
+  const isInCart = (itemId: string) => {
+    return cart.find(i => i.id === itemId);
+  };
+
+  const getStatusBadge = (status: string, available: number) => {
+    if (available === 0) return <Badge variant="destructive">Out of Stock</Badge>;
+    if (available < 3) return <Badge variant="outline">Limited</Badge>;
+    return <Badge variant="default">Available</Badge>;
+  };
+
+  const handleCheckout = () => {
+    navigate("/new-request", { state: { cartItems: cart } });
   };
 
   return (
-    <MainLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Inventaris Alat</h1>
-          <p className="text-muted-foreground">Cari dan ajukan peminjaman alat</p>
-        </div>
+    <div className="min-h-screen bg-background pb-32">
+      {/* Header */}
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="container-mobile py-4">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold">Inventory</h1>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowFilters(!showFilters)}
+              className="neu-flat"
+            >
+              <Filter className="h-5 w-5" />
+            </Button>
+          </div>
 
-        {/* Search and Filters */}
-        <Card className="neu-flat">
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-2 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Cari nama alat..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 neu-sunken"
-                />
-              </div>
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+            <Input
+              placeholder="Search for tools..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 neu-sunken"
+            />
+          </div>
 
+          {/* Filters */}
+          {showFilters && (
+            <div className="grid grid-cols-2 gap-3 mt-3">
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger className="neu-sunken">
-                  <SelectValue placeholder="Semua Kategori" />
+                  <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Semua Kategori</SelectItem>
+                  <SelectItem value="all">All Categories</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                   ))}
@@ -102,91 +150,119 @@ export default function Inventory() {
 
               <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
                 <SelectTrigger className="neu-sunken">
-                  <SelectValue placeholder="Semua Pemilik" />
+                  <SelectValue placeholder="Department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Semua Pemilik</SelectItem>
+                  <SelectItem value="all">All Departments</SelectItem>
                   {departments.map((dept) => (
                     <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
+      </div>
 
-        {/* Items Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredItems.map((item) => (
-            <Card key={item.id} className="neu-flat hover:neu-raised transition-all">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="neu-raised p-3 rounded-xl">
-                      <Package className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{item.name}</CardTitle>
-                      {item.code && (
-                        <p className="text-xs text-muted-foreground">Kode: {item.code}</p>
+      {/* Items Grid */}
+      <div className="container-mobile py-4">
+        <div className="grid gap-4">
+          {filteredItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Package className="h-16 w-16 mb-4 opacity-50" />
+              <p className="text-lg">No items found</p>
+            </div>
+          ) : (
+            filteredItems.map((item) => {
+              const cartItem = isInCart(item.id);
+              return (
+                <Card key={item.id} className="neu-raised p-4 hover:shadow-lg transition-shadow">
+                  <div className="flex gap-4">
+                    {/* Item Image */}
+                    <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center overflow-hidden neu-sunken">
+                      {item.image_url ? (
+                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Package className="h-10 w-10 text-muted-foreground" />
                       )}
                     </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <CardDescription className="line-clamp-2">
-                  {item.description || "Tidak ada deskripsi"}
-                </CardDescription>
 
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Pemilik:</span>
-                    <span className="font-medium">{item.department?.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Kategori:</span>
-                    <span className="font-medium">{item.category?.name || "-"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Ketersediaan:</span>
-                    <span className="font-medium">
-                      {item.available_quantity} / {item.quantity} unit
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Status:</span>
-                    {getStatusBadge(item.available_quantity, item.quantity)}
-                  </div>
-                  {item.location && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Lokasi:</span>
-                      <span className="font-medium">{item.location}</span>
+                    {/* Item Info */}
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h3 className="font-semibold text-lg">{item.name}</h3>
+                          {item.code && (
+                            <p className="text-xs text-muted-foreground">{item.code}</p>
+                          )}
+                        </div>
+                        {getStatusBadge(item.status, item.available_quantity)}
+                      </div>
+
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Available: {item.available_quantity}
+                      </p>
+
+                      <div className="flex items-center gap-2">
+                        {cartItem ? (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => removeFromCart(item.id)}
+                              className="neu-pressed"
+                            >
+                              -
+                            </Button>
+                            <span className="font-semibold w-8 text-center">
+                              {cartItem.requestedQuantity}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => addToCart(item)}
+                              disabled={cartItem.requestedQuantity >= item.available_quantity}
+                              className="neu-flat"
+                            >
+                              +
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => addToCart(item)}
+                            className="w-full"
+                          >
+                            Add to Request
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                <Button
-                  className="w-full neu-raised hover:neu-pressed"
-                  disabled={item.available_quantity === 0}
-                  onClick={() => navigate("/new-request", { state: { itemId: item.id } })}
-                >
-                  Ajukan Pinjam
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                  </div>
+                </Card>
+              );
+            })
+          )}
         </div>
-
-        {filteredItems.length === 0 && (
-          <Card className="neu-flat">
-            <CardContent className="py-12 text-center">
-              <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Tidak ada alat yang sesuai dengan pencarian</p>
-            </CardContent>
-          </Card>
-        )}
       </div>
-    </MainLayout>
+
+      {/* Sticky Bottom Cart Bar */}
+      {cart.length > 0 && (
+        <div className="sticky-bottom-bar">
+          <div className="container-mobile">
+            <Button
+              onClick={handleCheckout}
+              size="lg"
+              className="w-full relative"
+            >
+              <ShoppingCart className="mr-2 h-5 w-5" />
+              Request to Borrow ({cart.reduce((sum, item) => sum + item.requestedQuantity, 0)})
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <BottomNav />
+    </div>
   );
 }
