@@ -10,6 +10,8 @@ export interface CartItem {
   available_quantity: number;
   image_url?: string;
   location?: string;
+  category?: string;
+  description?: string;
 }
 
 interface CartState {

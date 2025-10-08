@@ -23,6 +23,8 @@ import {
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { toast } from "sonner";
+import { generatePDF } from "@/lib/pdfGenerator";
+import { startLoanProcess, completeLoanProcess } from "@/lib/loanManagement";
 
 interface RequestDetail {
   id: string;
@@ -118,6 +120,60 @@ export default function RequestDetail() {
     return statusMap[status] || { label: status, color: "bg-gray-100 text-gray-700", icon: AlertCircle };
   };
 
+  const handleStartLoan = async () => {
+    if (!request?.id) return;
+
+    const confirmed = window.confirm(
+      "Mulai peminjaman alat? Ini akan mengurangi jumlah stok tersedia dan mengubah status menjadi 'Sedang Dipinjam'."
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+    try {
+      const result = await startLoanProcess(request.id);
+      if (result.success) {
+        toast.success("Peminjaman dimulai! Stok alat telah diperbarui.");
+        // Refresh data
+        window.location.reload();
+      } else {
+        throw new Error("Failed to start loan");
+      }
+    } catch (error) {
+      console.error("Error starting loan:", error);
+      toast.error("Gagal memulai peminjaman");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompleteLoan = async () => {
+    if (!request?.id) return;
+
+    const confirmed = window.confirm(
+      "Selesaikan peminjaman? Ini akan mengembalikan alat ke stok tersedia dan mengubah status menjadi 'Selesai'."
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+    try {
+      const result = await completeLoanProcess(request.id);
+      if (result.success) {
+        toast.success("Peminjaman selesai! Alat telah dikembalikan ke stok.");
+        // Refresh data
+        window.location.reload();
+      } else {
+        throw new Error("Failed to complete loan");
+      }
+    } catch (error) {
+      console.error("Error completing loan:", error);
+      toast.error("Gagal menyelesaikan peminjaman");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDownloadLetter = async () => {
     if (!request?.letter_number) {
       toast.error("Surat belum tersedia");
@@ -125,109 +181,57 @@ export default function RequestDetail() {
     }
 
     try {
-      // Generate PDF surat peminjaman
-      const letterData = {
-        letterNumber: request.letter_number,
-        date: format(new Date(request.letter_generated_at), "dd MMMM yyyy", { locale: id }),
-        borrower: {
-          name: request.borrower.full_name,
-          unit: request.borrower.unit,
-          phone: request.borrower.phone
+      // Get owner and headmaster info
+      const { data: ownerData } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", request.borrower.id)
+        .single();
+
+      const { data: headmasterData } = await supabase
+        .from("user_roles")
+        .select("profiles(full_name)")
+        .eq("role", "headmaster")
+        .single();
+
+      // Prepare PDF data
+      const pdfData = {
+        request: {
+          id: request.id,
+          letter_number: request.letter_number,
+          purpose: request.purpose,
+          start_date: request.start_date,
+          end_date: request.end_date,
+          location_usage: request.location_usage,
+          pic_name: request.pic_name,
+          pic_contact: request.pic_contact,
+          created_at: request.created_at,
+          borrower: {
+            full_name: request.borrower.full_name,
+            unit: request.borrower.unit,
+            phone: request.borrower.phone
+          },
+          request_items: request.request_items.map(item => ({
+            quantity: item.quantity,
+            items: {
+              name: item.items.name,
+              code: item.items.code,
+              description: item.items.description || ""
+            }
+          }))
         },
-        period: {
-          start: format(new Date(request.start_date), "dd MMMM yyyy", { locale: id }),
-          end: format(new Date(request.end_date), "dd MMMM yyyy", { locale: id })
-        },
-        purpose: request.purpose,
-        location: request.location_usage,
-        pic: {
-          name: request.pic_name,
-          contact: request.pic_contact
-        },
-        items: request.request_items.map(item => ({
-          name: item.items.name,
-          code: item.items.code,
-          quantity: item.quantity,
-          department: item.items.departments.name
-        }))
+        ownerName: ownerData?.full_name,
+        headmasterName: headmasterData?.profiles?.full_name,
+        schoolName: "SMK NEGERI 1 KOTA BEKASI",
+        schoolAddress: "Jl. Bintara VIII No.2, Bintara, Kec. Bekasi Barat\nKota Bekasi, Jawa Barat 17134\nTelp: (021) 8844567 | Email: smkn1kotabekasi@gmail.com"
       };
 
-      // Here you would integrate with a PDF generation service
-      // For now, we'll create a simple text representation
-      const letterContent = generateLetterContent(letterData);
-      
-      // Create downloadable file
-      const blob = new Blob([letterContent], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Surat_Peminjaman_${request.letter_number}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast.success("Surat berhasil diunduh");
+      await generatePDF(pdfData);
+      toast.success("Surat PDF berhasil diunduh");
     } catch (error) {
       console.error("Error downloading letter:", error);
       toast.error("Gagal mengunduh surat");
     }
-  };
-
-  const generateLetterContent = (data: {
-    letterNumber: string;
-    date: string;
-    borrower: { name: string; unit: string; phone: string };
-    period: { start: string; end: string };
-    purpose: string;
-    location: string;
-    pic: { name: string; contact: string };
-    items: { name: string; code: string; quantity: number; department: string }[];
-  }) => {
-    return `
-SURAT PEMINJAMAN ALAT
-No. Surat: ${data.letterNumber}
-Tanggal: ${data.date}
-
-Yang bertanda tangan di bawah ini:
-Nama Peminjam: ${data.borrower.name}
-Unit Kerja: ${data.borrower.unit}
-No. Telepon: ${data.borrower.phone}
-
-Dengan ini mengajukan peminjaman alat dengan detail sebagai berikut:
-
-PERIODE PEMINJAMAN:
-Mulai: ${data.period.start}
-Selesai: ${data.period.end}
-
-KEPERLUAN: ${data.purpose}
-LOKASI PENGGUNAAN: ${data.location}
-
-PENANGGUNG JAWAB:
-Nama: ${data.pic.name}
-Kontak: ${data.pic.contact}
-
-DAFTAR ALAT:
-${data.items.map((item, index) => 
-  `${index + 1}. ${item.name} (${item.code}) - ${item.quantity} unit - Dept. ${item.department}`
-).join('\n')}
-
-Demikian surat peminjaman ini dibuat untuk dapat dipergunakan sebagaimana mestinya.
-
-Hormat kami,
-
-
-________________________
-Kepala Sekolah
-
-
-________________________
-Pemilik Alat
-
-
-________________________
-Peminjam
-    `.trim();
   };
 
   if (loading) {
@@ -314,6 +318,49 @@ Peminjam
             </div>
           </CardContent>
         </Card>
+
+        {/* Action Buttons */}
+        {(request.status === 'approved' || request.status === 'active') && (
+          <Card className="neu-flat">
+            <CardHeader>
+              <CardTitle className="text-lg">Kelola Peminjaman</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {request.status === 'approved' && (
+                <Button
+                  onClick={handleStartLoan}
+                  disabled={loading}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  {loading ? "Memproses..." : "Mulai Peminjaman"}
+                </Button>
+              )}
+              
+              {request.status === 'active' && (
+                <Button
+                  onClick={handleCompleteLoan}
+                  disabled={loading}
+                  variant="outline"
+                  className="w-full border-green-600 text-green-600 hover:bg-green-50"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {loading ? "Memproses..." : "Selesaikan Peminjaman"}
+                </Button>
+              )}
+              
+              <div className="text-xs text-muted-foreground bg-blue-50 p-3 rounded-lg">
+                <strong>Info:</strong>
+                {request.status === 'approved' && 
+                  " Klik 'Mulai Peminjaman' untuk mengurangi stok alat dan mengubah status menjadi aktif."
+                }
+                {request.status === 'active' && 
+                  " Klik 'Selesaikan Peminjaman' untuk mengembalikan alat ke stok dan menyelesaikan transaksi."
+                }
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Request Info */}
         <Card className="neu-flat">

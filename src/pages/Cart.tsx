@@ -42,7 +42,7 @@ export default function Cart() {
       {/* Header */}
       <div className="bg-gradient-to-b from-primary/5 to-background">
         <div className="container-mobile pt-6 pb-4">
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-4">
             <h1 className="text-2xl font-bold flex items-center justify-center gap-2">
               <ShoppingCart className="h-6 w-6" />
               Keranjang ({getTotalItems()})
@@ -50,6 +50,30 @@ export default function Cart() {
             <p className="text-muted-foreground">
               Review alat yang akan dipinjam
             </p>
+            
+            {/* Progress Steps */}
+            <div className="flex items-center justify-center gap-4 mt-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                  1
+                </div>
+                <span className="text-sm font-medium text-primary">Pilih Alat</span>
+              </div>
+              <div className="w-8 h-0.5 bg-primary"></div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                  2
+                </div>
+                <span className="text-sm font-medium text-primary">Review Keranjang</span>
+              </div>
+              <div className="w-8 h-0.5 bg-muted"></div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-bold">
+                  3
+                </div>
+                <span className="text-sm text-muted-foreground">Form Peminjaman</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

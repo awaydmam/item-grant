@@ -124,11 +124,37 @@ export default function Orders() {
       {/* Header */}
       <div className="bg-gradient-to-b from-primary/5 to-background">
         <div className="container-mobile pt-6 pb-4">
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-bold">Orders</h1>
+          <div className="text-center space-y-4">
+            <h1 className="text-2xl font-bold">Status Peminjaman</h1>
             <p className="text-muted-foreground">
               Track semua pengajuan peminjaman Anda
             </p>
+            
+            {/* Process Flow Info */}
+            <div className="bg-white/50 rounded-lg p-4 mt-4">
+              <h3 className="font-semibold text-sm mb-2">Alur Persetujuan:</h3>
+              <div className="flex items-center justify-between text-xs">
+                <div className="text-center">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mx-auto mb-1"></div>
+                  <span>Diajukan</span>
+                </div>
+                <div className="flex-1 h-0.5 bg-gray-300 mx-2"></div>
+                <div className="text-center">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mx-auto mb-1"></div>
+                  <span>Review Owner</span>
+                </div>
+                <div className="flex-1 h-0.5 bg-gray-300 mx-2"></div>
+                <div className="text-center">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mx-auto mb-1"></div>
+                  <span>Review Kepsek</span>
+                </div>
+                <div className="flex-1 h-0.5 bg-gray-300 mx-2"></div>
+                <div className="text-center">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mx-auto mb-1"></div>
+                  <span>Disetujui</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

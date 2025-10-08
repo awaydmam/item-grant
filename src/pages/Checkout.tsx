@@ -154,7 +154,7 @@ export default function Checkout() {
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="container-mobile py-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-4">
             <Button
               variant="ghost"
               size="icon"
@@ -166,6 +166,30 @@ export default function Checkout() {
             <div className="flex-1">
               <h1 className="text-2xl font-bold">Checkout</h1>
               <p className="text-sm text-muted-foreground">Lengkapi detail pengajuan peminjaman</p>
+            </div>
+          </div>
+          
+          {/* Progress Steps */}
+          <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                ✓
+              </div>
+              <span className="text-sm text-primary">Pilih Alat</span>
+            </div>
+            <div className="w-8 h-0.5 bg-primary"></div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                ✓
+              </div>
+              <span className="text-sm text-primary">Review Keranjang</span>
+            </div>
+            <div className="w-8 h-0.5 bg-primary"></div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                3
+              </div>
+              <span className="text-sm font-medium text-primary">Form Peminjaman</span>
             </div>
           </div>
         </div>

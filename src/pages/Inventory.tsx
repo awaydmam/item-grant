@@ -288,12 +288,30 @@ export default function Inventory() {
             <Button
               onClick={handleCheckout}
               size="lg"
-              className="w-full relative"
+              className="w-full relative bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg"
             >
               <ShoppingCart className="mr-2 h-5 w-5" />
-              Ajukan Peminjaman ({getTotalItems()})
+              Lanjut ke Keranjang ({getTotalItems()})
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Floating Cart Button - Alternative untuk desktop */}
+      {getTotalItems() > 0 && (
+        <div className="fixed bottom-20 right-4 z-50 md:block hidden">
+          <Button
+            onClick={handleCheckout}
+            size="lg"
+            className="rounded-full w-16 h-16 bg-primary hover:bg-primary/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110"
+          >
+            <div className="relative">
+              <ShoppingCart className="h-6 w-6" />
+              <Badge className="absolute -top-2 -right-2 min-w-[20px] h-5 text-xs bg-destructive hover:bg-destructive">
+                {getTotalItems()}
+              </Badge>
+            </div>
+          </Button>
         </div>
       )}
 
