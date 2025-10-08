@@ -51,6 +51,7 @@ interface FormData {
   location: string;
   image_url: string;
   status: "available" | "maintenance" | "reserved" | "borrowed" | "damaged" | "lost";
+  available_quantity?: number; // Tambahkan untuk tracking
 }
 
 interface FormErrors {
@@ -96,6 +97,26 @@ export default function AddItem() {
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
+  const [originalItemData, setOriginalItemData] = useState<FormData | null>(null);
+
+  // Fungsi untuk mencatat aktivitas perubahan item
+  const logItemActivity = async (itemId: string, actionType: string, oldValues: Record<string, unknown>, newValues: Record<string, unknown>, notes?: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('item_activity_logs').insert({
+        item_id: itemId,
+        user_id: user.id,
+        action_type: actionType,
+        old_values: oldValues,
+        new_values: newValues,
+        notes: notes
+      });
+    } catch (error) {
+      console.error('Error logging activity:', error);
+    }
+  };
 
   // Fungsi untuk menambah kategori baru
   const handleAddCategory = async () => {
@@ -190,7 +211,7 @@ export default function AddItem() {
             if (error) throw error;
             
             if (data && isMounted) {
-              setFormData({
+              const itemFormData = {
                 name: data.name || "",
                 code: data.code || "",
                 description: data.description || "",
@@ -200,7 +221,9 @@ export default function AddItem() {
                 location: data.location || "",
                 image_url: data.image_url || "",
                 status: data.status || "available"
-              });
+              };
+              setFormData(itemFormData);
+              setOriginalItemData({...itemFormData, available_quantity: data.available_quantity || 1}); // Simpan data original termasuk available_quantity
               setPreviewImage(data.image_url || "");
             }
           } 
@@ -258,29 +281,71 @@ export default function AddItem() {
     try {
       setSaving(true);
       
-      const itemData = {
-        ...formData,
-        available_quantity: formData.quantity,
-        updated_at: new Date().toISOString()
-      };
-      
       if (isEditMode && id) {
+        // Mode Edit - ambil data lama untuk perbandingan
+        const { data: oldItem, error: fetchError } = await supabase
+          .from("items")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        // Hitung perubahan quantity
+        const quantityDifference = formData.quantity - (oldItem?.quantity || 0);
+        const newAvailableQuantity = Math.max(0, (oldItem?.available_quantity || 0) + quantityDifference);
+
+        const itemData = {
+          ...formData,
+          available_quantity: newAvailableQuantity,
+          updated_at: new Date().toISOString()
+        };
+
         const { error } = await supabase
           .from("items")
           .update(itemData)
           .eq("id", id);
         
         if (error) throw error;
+
+        // Log perubahan
+        await logItemActivity(
+          id,
+          'updated',
+          oldItem,
+          itemData,
+          `Item diperbarui. Quantity berubah dari ${oldItem?.quantity} menjadi ${formData.quantity}. Available quantity: ${newAvailableQuantity}`
+        );
+
         toast.success("Barang berhasil diperbarui");
       } else {
-        const { error } = await supabase
+        // Mode Tambah Baru
+        const itemData = {
+          ...formData,
+          available_quantity: formData.quantity, // Available quantity sama dengan total quantity untuk item baru
+          updated_at: new Date().toISOString()
+        };
+
+        const { data: newItem, error } = await supabase
           .from("items")
           .insert([{
             ...itemData,
             created_at: new Date().toISOString()
-          }]);
+          }])
+          .select()
+          .single();
         
         if (error) throw error;
+
+        // Log pembuatan item baru
+        await logItemActivity(
+          newItem.id,
+          'created',
+          {},
+          itemData,
+          `Item baru ditambahkan dengan quantity ${formData.quantity}`
+        );
+
         toast.success("Barang berhasil ditambahkan");
       }
       
@@ -547,7 +612,14 @@ export default function AddItem() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="quantity" className="text-sm font-medium text-gray-700">Jumlah *</Label>
+                  <Label htmlFor="quantity" className="text-sm font-medium text-gray-700">
+                    Jumlah Total *
+                    {isEditMode && originalItemData && (
+                      <span className="ml-2 text-xs text-blue-600">
+                        (Tersedia: {originalItemData.available_quantity})
+                      </span>
+                    )}
+                  </Label>
                   <Input
                     id="quantity"
                     type="number"
@@ -557,6 +629,16 @@ export default function AddItem() {
                     className={`mt-1 ${errors.quantity ? "border-red-500" : ""}`}
                   />
                   {errors.quantity && <p className="text-xs text-red-500 mt-1">{errors.quantity}</p>}
+                  {isEditMode && originalItemData && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      {formData.quantity > (originalItemData.quantity || 0) 
+                        ? `Menambah ${formData.quantity - (originalItemData.quantity || 0)} unit` 
+                        : formData.quantity < (originalItemData.quantity || 0)
+                        ? `Mengurangi ${(originalItemData.quantity || 0) - formData.quantity} unit`
+                        : "Tidak ada perubahan quantity"
+                      }
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -653,8 +735,19 @@ export default function AddItem() {
           <Alert className="bg-blue-50 border-blue-200">
             <AlertCircle className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-800">
-              <strong>Tips:</strong> Pastikan semua informasi sudah benar sebelum menyimpan. 
-              Kode barang harus unik dan tidak boleh sama dengan barang lain.
+              <strong>Informasi Quantity:</strong>{" "}
+              {isEditMode ? (
+                <>
+                  Saat edit, perubahan quantity akan otomatis mengatur jumlah tersedia. 
+                  Jika ada barang yang sedang dipinjam, pastikan tidak mengurangi quantity 
+                  di bawah jumlah yang dipinjam.
+                </>
+              ) : (
+                <>
+                  Quantity adalah jumlah total barang. Saat ada peminjaman, jumlah tersedia 
+                  akan berkurang otomatis dan kembali normal saat barang dikembalikan.
+                </>
+              )}
             </AlertDescription>
           </Alert>
         </form>
