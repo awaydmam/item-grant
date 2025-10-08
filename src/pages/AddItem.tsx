@@ -8,6 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { 
   ArrowLeft, 
   Package, 
@@ -15,7 +24,9 @@ import {
   RefreshCw,
   AlertCircle,
   Camera,
-  X
+  X,
+  Plus,
+  Folder
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -82,6 +93,58 @@ export default function AddItem() {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
+  const [addingCategory, setAddingCategory] = useState(false);
+
+  // Fungsi untuk menambah kategori baru
+  const handleAddCategory = async () => {
+    if (!newCategory.trim()) {
+      toast.error("Nama kategori harus diisi");
+      return;
+    }
+
+    try {
+      setAddingCategory(true);
+      
+      // Periksa apakah kategori sudah ada
+      const { data: existingCategory } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("name", newCategory.trim())
+        .single();
+
+      if (existingCategory) {
+        toast.error("Kategori sudah ada");
+        return;
+      }
+
+      // Tambah kategori baru
+      const { data: newCategoryData, error } = await supabase
+        .from("categories")
+        .insert([{ name: newCategory.trim() }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update list kategori
+      setCategories(prev => [...prev, newCategoryData]);
+      
+      // Set kategori yang baru dibuat sebagai kategori yang dipilih
+      setFormData(prev => ({ ...prev, category_id: newCategoryData.id }));
+      
+      // Reset form dan tutup dialog
+      setNewCategory("");
+      setIsAddCategoryOpen(false);
+      toast.success("Kategori berhasil ditambahkan");
+    } catch (error) {
+      console.error("Error adding category:", error);
+      toast.error("Gagal menambahkan kategori");
+    } finally {
+      setAddingCategory(false);
+    }
+  };
 
   // Generate automatic code
   const generateCode = useCallback(() => {
@@ -367,21 +430,87 @@ export default function AddItem() {
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="category" className="text-sm font-medium text-gray-700">Kategori *</Label>
-                <Select
-                  value={formData.category_id}
-                  onValueChange={(value) => handleInputChange("category_id", value)}
-                >
-                  <SelectTrigger className={`mt-1 ${errors.category_id ? "border-red-500" : ""}`}>
-                    <SelectValue placeholder="Pilih kategori" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map(category => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2 mt-1">
+                  <div className="flex-1">
+                    <Select
+                      value={formData.category_id}
+                      onValueChange={(value) => handleInputChange("category_id", value)}
+                    >
+                      <SelectTrigger className={errors.category_id ? "border-red-500" : ""}>
+                        <SelectValue placeholder="Pilih kategori" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map(category => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Tombol Tambah Kategori - Hanya muncul untuk Owner dan Admin */}
+                  {(isOwner || isAdmin) && (
+                    <Dialog open={isAddCategoryOpen} onOpenChange={setIsAddCategoryOpen}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          className="px-3 h-10 shrink-0"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          <span className="hidden sm:inline">Kategori</span>
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2">
+                            <Folder className="h-5 w-5 text-blue-600" />
+                            Tambah Kategori Baru
+                          </DialogTitle>
+                          <DialogDescription>
+                            Tambahkan kategori baru untuk mengelompokkan barang inventaris.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="newCategory">Nama Kategori</Label>
+                            <Input
+                              id="newCategory"
+                              placeholder="Masukkan nama kategori"
+                              value={newCategory}
+                              onChange={(e) => setNewCategory(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsAddCategoryOpen(false)}
+                            disabled={addingCategory}
+                          >
+                            Batal
+                          </Button>
+                          <Button
+                            onClick={handleAddCategory}
+                            disabled={addingCategory}
+                          >
+                            {addingCategory ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Menyimpan...
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Tambah Kategori
+                              </>
+                            )}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                </div>
                 {errors.category_id && <p className="text-xs text-red-500 mt-1">{errors.category_id}</p>}
               </div>
 
