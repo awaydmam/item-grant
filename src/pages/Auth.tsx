@@ -24,7 +24,7 @@ export default function Auth() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
-        navigate("/");
+        navigate("/dashboard");
       }
     });
 
@@ -33,7 +33,7 @@ export default function Auth() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
-        navigate("/");
+        navigate("/dashboard");
       }
     });
 
