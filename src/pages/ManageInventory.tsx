@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Package, Edit, Trash2, Search, Filter, AlertCircle, Grid3X3, List, ArrowLeft, Menu } from "lucide-react";
+import { Plus, Package, Edit, Trash2, Search, Filter, AlertCircle, Grid3X3, List, ArrowLeft, Menu, CheckCircle, Clock } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -295,11 +295,50 @@ export default function ManageInventory() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="flex justify-center items-center h-64">
-          <div className="text-center space-y-4">
-            <Package className="h-12 w-12 text-gray-400 mx-auto animate-pulse" />
-            <p className="text-gray-500">Memuat inventaris...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        {/* Header skeleton */}
+        <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200">
+          <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-9 h-9 bg-gray-200 rounded-xl animate-pulse"></div>
+              <div className="space-y-2">
+                <div className="w-32 h-5 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-24 h-3 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+            </div>
+            <div className="w-20 h-9 bg-gray-200 rounded-xl animate-pulse"></div>
+          </div>
+        </div>
+        
+        {/* Content skeleton */}
+        <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="space-y-6">
+            {/* Filter skeleton */}
+            <div className="bg-white/80 rounded-xl p-6">
+              <div className="w-full h-11 bg-gray-200 rounded-xl animate-pulse"></div>
+            </div>
+            
+            {/* Stats skeleton */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-white/80 rounded-xl p-6">
+                  <div className="w-12 h-12 bg-gray-200 rounded-xl animate-pulse mx-auto mb-3"></div>
+                  <div className="w-8 h-6 bg-gray-200 rounded animate-pulse mx-auto mb-2"></div>
+                  <div className="w-16 h-4 bg-gray-200 rounded animate-pulse mx-auto"></div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Items skeleton */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="bg-white/80 rounded-xl p-4">
+                  <div className="w-full h-32 bg-gray-200 rounded-lg animate-pulse mb-3"></div>
+                  <div className="w-3/4 h-5 bg-gray-200 rounded animate-pulse mb-2"></div>
+                  <div className="w-1/2 h-4 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -307,22 +346,24 @@ export default function ManageInventory() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Mobile-Friendly Header */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Enhanced Mobile-Friendly Header */}
+      <div className="bg-white/95 backdrop-blur-sm shadow-sm border-b border-gray-200 sticky top-0 z-20">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <Button 
               variant="ghost" 
               size="sm"
               onClick={() => navigate('/')}
-              className="p-2"
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5 text-gray-600" />
             </Button>
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">Kelola Inventaris</h1>
-              <p className="text-sm text-gray-500">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
+                Kelola Inventaris
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-500 truncate">
                 {hasRole('owner') && !hasRole('admin') 
                   ? `Departemen: ${getUserDepartment() || 'Tidak diatur'}`
                   : 'Semua Departemen'
@@ -333,45 +374,57 @@ export default function ManageInventory() {
           <Button
             onClick={() => navigate("/add-item")}
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 sm:px-4 rounded-xl font-medium shadow-sm"
           >
-            <Plus className="h-4 w-4 mr-1" />
-            <span className="hidden sm:inline">Tambah</span>
+            <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Tambah Barang</span>
+            <span className="sm:hidden">Tambah</span>
           </Button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4 max-w-6xl mx-auto space-y-6">
+      <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
         {/* Quick Actions - Tampil jika inventory kosong */}
         {items.length === 0 && (
-          <Card className="border-2 border-dashed border-blue-200 bg-blue-50">
-            <CardContent className="p-8 text-center">
-              <Package className="h-16 w-16 text-blue-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-6 sm:p-8 text-center">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Package className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
                 Mulai Kelola Inventaris
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-sm sm:text-base text-gray-600 mb-6 max-w-md mx-auto leading-relaxed">
                 {hasRole('owner') && !hasRole('admin') 
                   ? `Belum ada barang di departemen ${getUserDepartment()}. Mulai dengan menambahkan barang pertama.`
                   : 'Belum ada barang di inventaris. Mulai dengan menambahkan barang pertama.'
                 }
               </p>
-              <Button
-                onClick={() => navigate("/add-item")}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Tambah Barang Pertama
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  onClick={() => navigate("/add-item")}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Tambah Barang Pertama
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate("/")}
+                  className="border-gray-200 text-gray-700 hover:bg-gray-50 px-6 py-3 rounded-xl font-medium"
+                >
+                  Kembali ke Beranda
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Filters */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4">
+        {/* Enhanced Filters */}
+        <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col lg:flex-row gap-4">
               <div className="flex-1">
                 <div className="relative">
                   <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -379,14 +432,15 @@ export default function ManageInventory() {
                     placeholder="Cari nama barang, kode, atau deskripsi..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-xl"
                   />
                 </div>
               </div>
-              <div className="flex gap-2">
+              
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Select value={filterCategory} onValueChange={setFilterCategory}>
-                  <SelectTrigger className="w-48">
-                    <Filter className="h-4 w-4 mr-2" />
+                  <SelectTrigger className="w-full sm:w-48 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-xl">
+                    <Filter className="h-4 w-4 mr-2 text-gray-500" />
                     <SelectValue placeholder="Filter Kategori" />
                   </SelectTrigger>
                   <SelectContent>
@@ -399,12 +453,12 @@ export default function ManageInventory() {
                   </SelectContent>
                 </Select>
                 
-                <div className="flex bg-gray-100 rounded-md p-1">
+                <div className="flex border rounded-xl overflow-hidden bg-gray-50">
                   <Button
                     size="sm"
                     variant={viewMode === "grid" ? "default" : "ghost"}
                     onClick={() => setViewMode("grid")}
-                    className="p-2"
+                    className={`rounded-none border-0 px-4 py-2 ${viewMode === "grid" ? 'bg-white shadow-sm' : 'bg-transparent'}`}
                   >
                     <Grid3X3 className="h-4 w-4" />
                   </Button>
@@ -412,7 +466,7 @@ export default function ManageInventory() {
                     size="sm"
                     variant={viewMode === "list" ? "default" : "ghost"}
                     onClick={() => setViewMode("list")}
-                    className="p-2"
+                    className={`rounded-none border-0 px-4 py-2 ${viewMode === "list" ? 'bg-white shadow-sm' : 'bg-transparent'}`}
                   >
                     <List className="h-4 w-4" />
                   </Button>

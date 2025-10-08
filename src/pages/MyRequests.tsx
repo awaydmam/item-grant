@@ -81,9 +81,36 @@ export default function MyRequests() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-16">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <p className="text-muted-foreground">Memuat...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-16">
+        {/* Header skeleton */}
+        <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200">
+          <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <div className="space-y-2">
+              <div className="w-48 h-6 bg-gray-200 rounded animate-pulse"></div>
+              <div className="w-64 h-4 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Content skeleton */}
+        <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-white/80 rounded-xl p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="space-y-2">
+                    <div className="w-32 h-5 bg-gray-200 rounded animate-pulse"></div>
+                    <div className="w-24 h-4 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                  <div className="w-20 h-6 bg-gray-200 rounded-full animate-pulse"></div>
+                </div>
+                <div className="space-y-2">
+                  <div className="w-full h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-3/4 h-4 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
         <BottomNav />
       </div>
@@ -91,12 +118,19 @@ export default function MyRequests() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-16">
-      <div className="container-mobile pt-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold mb-2">Pengajuan Saya</h1>
-          <p className="text-muted-foreground">Pantau status pengajuan peminjaman Anda</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-16">
+      {/* Enhanced Header */}
+      <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200">
+        <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Pengajuan Saya</h1>
+            <p className="text-sm sm:text-base text-gray-600">Pantau status pengajuan peminjaman Anda</p>
+          </div>
         </div>
+      </div>
+
+      {/* Enhanced Content */}
+      <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
 
         {requests.length === 0 ? (
           <Card className="neu-flat">

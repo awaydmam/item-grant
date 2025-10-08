@@ -1,6 +1,13 @@
 # Copilot Instructions for Item Grant System
 harus dijawab dengan bahsa indonesia selalu dan juga progres memkai bahasa indoensia
 
+
+usahakan perbaiki yang ada jangan mengganti yang sudah ada filenya apalagi menghapus, lalu juga jika ada yang kurang tambahkan saja, jangan menghapus yang sudah ada
+
+pastikan smua sesuai style awal dan juga kamu paham UI UX jadinya padding maregin lebih teliti biar nyaman di baca dan di lihat oleh pengguna
+
+
+
 ## Arsitektur Aplikasi
 
 Aplikasi ini adalah sistem manajemen peminjaman barang sekolah dengan UI/UX marketplace-style:

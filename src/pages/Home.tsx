@@ -175,27 +175,47 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-16">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background">
-        <div className="container-mobile pt-6 pb-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-16">
+      {/* Enhanced Hero Section */}
+      <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200">
+        <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
           <div className="space-y-4">
-            {/* Greeting */}
-            <div>
-              <h1 className="text-2xl font-bold">{getGreeting()}!</h1>
-              <p className="text-lg text-muted-foreground">
-                {userProfile?.full_name || "User"}
-              </p>
-              {userProfile?.unit && (
-                <p className="text-sm text-muted-foreground">{userProfile.unit}</p>
+            {/* Enhanced Greeting */}
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center">
+                <span className="text-xl font-bold text-blue-700">
+                  {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'U'}
+                </span>
+              </div>
+              <div className="flex-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{getGreeting()}!</h1>
+                <p className="text-base sm:text-lg text-gray-600">
+                  {userProfile?.full_name || "User"}
+                </p>
+                {userProfile?.unit && (
+                  <p className="text-sm text-gray-500">{userProfile.unit}</p>
+                )}
+              </div>
+              
+              {/* Cart Button */}
+              {totalItems > 0 && (
+                <Link to="/cart">
+                  <Button size="sm" className="relative bg-orange-500 hover:bg-orange-600 text-white rounded-xl px-4 py-2">
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    <span className="hidden sm:inline">Keranjang</span>
+                    <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 bg-red-500 text-white text-xs flex items-center justify-center">
+                      {totalItems}
+                    </Badge>
+                  </Button>
+                </Link>
               )}
             </div>
 
-            {/* Roles */}
+            {/* Enhanced Roles */}
             {userRoles.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {userRoles.map((role) => (
-                  <Badge key={role} variant="secondary" className="neu-flat">
+                  <Badge key={role} variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-3 py-1">
                     {getRoleLabel(role)}
                   </Badge>
                 ))}
@@ -205,46 +225,47 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="container-mobile py-4 space-y-6">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="neu-flat">
-            <CardContent className="p-4 text-center">
-              <div className="neu-raised w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2">
-                <Package className="h-6 w-6 text-primary" />
+      {/* Enhanced Content */}
+      <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
+        {/* Enhanced Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-4 sm:p-6 text-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Package className="h-6 w-6 text-blue-600" />
               </div>
-              <div className="text-2xl font-bold">{stats.totalItems}</div>
-              <div className="text-xs text-muted-foreground">Alat Tersedia</div>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.totalItems}</div>
+              <div className="text-xs sm:text-sm text-gray-600 font-medium">Alat Tersedia</div>
             </CardContent>
           </Card>
 
-          <Card className="neu-flat">
-            <CardContent className="p-4 text-center">
-              <div className="neu-raised w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2">
-                <Building2 className="h-6 w-6 text-blue-600" />
+          <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-4 sm:p-6 text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Building2 className="h-6 w-6 text-green-600" />
               </div>
-              <div className="text-2xl font-bold">{stats.totalDepartments}</div>
-              <div className="text-xs text-muted-foreground">Departemen</div>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.totalDepartments}</div>
+              <div className="text-xs sm:text-sm text-gray-600 font-medium">Departemen</div>
             </CardContent>
           </Card>
 
-          <Card className="neu-flat">
-            <CardContent className="p-4 text-center">
-              <div className="neu-raised w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2">
+          <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-4 sm:p-6 text-center">
+              <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
                 <FileText className="h-6 w-6 text-orange-600" />
               </div>
-              <div className="text-2xl font-bold">{stats.myRequests}</div>
-              <div className="text-xs text-muted-foreground">Pengajuan Saya</div>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.myRequests}</div>
+              <div className="text-xs sm:text-sm text-gray-600 font-medium">Pengajuan Saya</div>
             </CardContent>
           </Card>
 
-          <Card className="neu-flat">
-            <CardContent className="p-4 text-center">
-              <div className="neu-raised w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2">
-                <Users className="h-6 w-6 text-green-600" />
+          <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-4 sm:p-6 text-center">
+              <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Clock className="h-6 w-6 text-purple-600" />
               </div>
-              <div className="text-2xl font-bold">{stats.activeLoans}</div>
-              <div className="text-xs text-muted-foreground">Sedang Dipinjam</div>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.activeLoans}</div>
+              <div className="text-xs sm:text-sm text-gray-600 font-medium">Sedang Dipinjam</div>
             </CardContent>
           </Card>
         </div>

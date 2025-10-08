@@ -199,7 +199,7 @@ export default function Profile() {
                 {userRoles.map((roleObj, index) => {
                   const roleInfo = getRoleLabel(roleObj.role);
                   return (
-                    <Badge key={index} className={`neu-flat ${roleInfo.color}`}>
+                    <Badge key={index} className={`border-0 rounded-full px-3 py-1 font-medium ${roleInfo.color}`}>
                       <roleInfo.icon className="h-3 w-3 mr-1" />
                       {roleInfo.label}
                       {roleObj.department && ` - ${roleObj.department}`}
@@ -212,11 +212,16 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="container-mobile py-4 space-y-6">
-        {/* Profile Details */}
-        <Card className="neu-flat">
-          <CardHeader>
-            <CardTitle className="text-lg">Informasi Profil</CardTitle>
+      <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
+        {/* Enhanced Profile Details */}
+        <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                <User className="h-5 w-5 text-blue-600" />
+              </div>
+              <CardTitle className="text-lg text-gray-900">Informasi Profil</CardTitle>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">

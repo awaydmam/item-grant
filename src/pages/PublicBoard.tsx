@@ -42,12 +42,25 @@ export default function PublicBoard() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-16">
-      <div className="container-mobile pt-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold mb-2">Papan Publik</h1>
-          <p className="text-muted-foreground">Siapa sedang pinjam apa (realtime)</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-16">
+      {/* Enhanced Header */}
+      <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200">
+        <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Users className="h-8 w-8 text-blue-700" />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Papan Publik</h1>
+            <p className="text-sm sm:text-base text-gray-600">Siapa sedang meminjam apa (realtime)</p>
+            <Badge className="mt-2 bg-green-100 text-green-800 border-green-200">
+              {activeLoans.length} peminjaman aktif
+            </Badge>
+          </div>
         </div>
+      </div>
+
+      {/* Enhanced Content */}
+      <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
 
         {activeLoans.length === 0 ? (
           <Card className="neu-flat">
