@@ -58,7 +58,11 @@ export default function AddItem() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
-  const { isOwner, isAdmin, getUserDepartment, loading: roleLoading } = useUserRole();
+  const { hasRole, getUserDepartment, loading: roleLoading } = useUserRole();
+  
+  // Compute role values once to avoid unnecessary re-renders
+  const isOwner = hasRole('owner');
+  const isAdmin = hasRole('admin');
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -93,6 +97,7 @@ export default function AddItem() {
     
     const loadData = async () => {
       try {
+        console.log('Loading AddItem data...');
         setLoading(true);
         
         // Fetch categories and departments
@@ -133,7 +138,7 @@ export default function AddItem() {
         }
 
         // Set default department for owner
-        if (!isEditMode && isOwner() && !isAdmin() && departmentsResult.data) {
+        if (!isEditMode && isOwner && !isAdmin && departmentsResult.data) {
           const userDeptName = getUserDepartment();
           if (userDeptName) {
             const dept = departmentsResult.data.find(d => d.name === userDeptName);
@@ -160,7 +165,7 @@ export default function AddItem() {
     return () => {
       isMounted = false;
     };
-  }, [roleLoading, isEditMode, id, navigate, isOwner, isAdmin, getUserDepartment]);
+  }, [roleLoading, isEditMode, id, navigate, getUserDepartment, isOwner, isAdmin]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -382,7 +387,7 @@ export default function AddItem() {
                 <Select
                   value={formData.department_id}
                   onValueChange={(value) => handleInputChange("department_id", value)}
-                  disabled={isOwner() && !isAdmin()}
+                  disabled={isOwner && !isAdmin}
                 >
                   <SelectTrigger className={`mt-1 ${errors.department_id ? "border-red-500" : ""}`}>
                     <SelectValue placeholder="Pilih departemen" />
@@ -396,7 +401,7 @@ export default function AddItem() {
                   </SelectContent>
                 </Select>
                 {errors.department_id && <p className="text-xs text-red-500 mt-1">{errors.department_id}</p>}
-                {isOwner() && !isAdmin() && (
+                {isOwner && !isAdmin && (
                   <p className="text-xs text-gray-500 mt-1">Departemen otomatis sesuai role Anda</p>
                 )}
               </div>
