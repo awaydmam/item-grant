@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { toast } from "sonner";
 import { Inbox, CheckCircle, XCircle, Edit3, Calendar, User } from "lucide-react";
 import { format } from "date-fns";
@@ -48,6 +48,41 @@ export default function OwnerInbox() {
   };
 
   const handleApprove = async (requestId: string) => {
+    // This will be handled by the dual option buttons
+  };
+
+  const handleDirectLetter = async (requestId: string) => {
+    setProcessingId(requestId);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found");
+
+      // Update status to approved and generate internal letter
+      const { error } = await supabase
+        .from("borrow_requests")
+        .update({
+          status: "approved",
+          owner_notes: actionNotes || null,
+          owner_reviewed_by: user.id,
+          owner_reviewed_at: new Date().toISOString(),
+          letter_generated_at: new Date().toISOString(),
+        })
+        .eq("id", requestId);
+
+      if (error) throw error;
+
+      toast.success("Disetujui! Surat internal siap dicetak.");
+      setActionNotes("");
+      fetchRequests();
+    } catch (error: any) {
+      toast.error(error.message || "Gagal menyetujui permintaan");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleSendToHeadmaster = async (requestId: string) => {
     setProcessingId(requestId);
     
     try {
@@ -66,11 +101,11 @@ export default function OwnerInbox() {
 
       if (error) throw error;
 
-      toast.success("Diteruskan ke Kepsek untuk surat turun.");
+      toast.success("Diteruskan ke Kepala Sekolah untuk persetujuan.");
       setActionNotes("");
       fetchRequests();
     } catch (error: any) {
-      toast.error(error.message || "Gagal menyetujui permintaan");
+      toast.error(error.message || "Gagal meneruskan permintaan");
     } finally {
       setProcessingId(null);
     }
@@ -141,19 +176,20 @@ export default function OwnerInbox() {
 
   if (loading) {
     return (
-      <MainLayout>
+      <div className="min-h-screen bg-background pb-16">
         <div className="flex items-center justify-center min-h-[400px]">
           <p className="text-muted-foreground">Memuat...</p>
         </div>
-      </MainLayout>
+        <BottomNav />
+      </div>
     );
   }
 
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <div className="min-h-screen bg-background pb-16">
+      <div className="container-mobile pt-6 space-y-6">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Kotak Masuk Pemilik</h1>
+          <h1 className="text-2xl font-bold mb-2">Kotak Masuk Pemilik</h1>
           <p className="text-muted-foreground">
             Review dan kelola pengajuan peminjaman alat
           </p>
@@ -170,18 +206,23 @@ export default function OwnerInbox() {
           <div className="space-y-4">
             {requests.map((request) => (
               <Card key={request.id} className="neu-flat">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">
-                        Pengajuan dari {request.borrower?.full_name}
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base leading-tight">
+                        {request.borrower?.full_name}
                       </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {request.borrower?.unit} • {request.borrower?.phone}
+                      <p className="text-sm text-muted-foreground mt-1 break-words">
+                        {request.borrower?.unit}
                       </p>
+                      {request.borrower?.phone && (
+                        <p className="text-xs text-muted-foreground">
+                          {request.borrower.phone}
+                        </p>
+                      )}
                     </div>
-                    <Badge variant="secondary">
-                      Menunggu Review
+                    <Badge variant="secondary" className="flex-shrink-0">
+                      Menunggu
                     </Badge>
                   </div>
                 </CardHeader>
@@ -193,19 +234,17 @@ export default function OwnerInbox() {
                       {request.request_items?.map((ri: any) => (
                         <div
                           key={ri.id}
-                          className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                          className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg"
                         >
-                          <div className="flex items-center gap-3">
-                            <Badge variant="outline" className="font-mono">
-                              {ri.quantity}x
-                            </Badge>
-                            <div>
-                              <p className="font-medium">{ri.item?.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {ri.item?.department?.name}
-                                {ri.item?.code && ` • ${ri.item.code}`}
-                              </p>
-                            </div>
+                          <Badge variant="outline" className="font-mono text-xs flex-shrink-0">
+                            {ri.quantity}x
+                          </Badge>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm leading-tight">{ri.item?.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {ri.item?.department?.name}
+                              {ri.item?.code && ` • ${ri.item.code}`}
+                            </p>
                           </div>
                         </div>
                       ))}
@@ -213,7 +252,7 @@ export default function OwnerInbox() {
                   </div>
 
                   {/* Request Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div className="space-y-3 text-sm">
                     <div>
                       <p className="font-medium mb-1">Keperluan:</p>
                       <p className="text-muted-foreground">{request.purpose}</p>
@@ -221,7 +260,7 @@ export default function OwnerInbox() {
                     <div>
                       <p className="font-medium mb-1">Tanggal Pemakaian:</p>
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
+                        <Calendar className="h-4 w-4 flex-shrink-0" />
                         <span>
                           {format(new Date(request.start_date), "dd MMM", { locale: id })} - {format(new Date(request.end_date), "dd MMM yyyy", { locale: id })}
                         </span>
@@ -235,8 +274,8 @@ export default function OwnerInbox() {
                     )}
                     <div>
                       <p className="font-medium mb-1">Penanggung Jawab:</p>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <User className="h-4 w-4" />
+                      <div className="flex items-start gap-2 text-muted-foreground">
+                        <User className="h-4 w-4 flex-shrink-0 mt-0.5" />
                         <span>{request.pic_name} • {request.pic_contact}</span>
                       </div>
                     </div>
@@ -245,90 +284,94 @@ export default function OwnerInbox() {
                   {/* Actions */}
                   <div className="border-t pt-4 space-y-3">
                     <div>
-                      <Label htmlFor={`notes-${request.id}`}>Catatan (opsional)</Label>
+                      <Label htmlFor={`notes-${request.id}`} className="text-sm">Catatan (opsional)</Label>
                       <Textarea
                         id={`notes-${request.id}`}
                         placeholder="Tambahkan catatan untuk pemohon..."
                         value={actionNotes}
                         onChange={(e) => setActionNotes(e.target.value)}
                         className="neu-sunken mt-2"
+                        rows={3}
                       />
                     </div>
 
-                    <div className="flex gap-3">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="flex-1 neu-flat"
-                            disabled={processingId === request.id}
-                          >
-                            <Edit3 className="h-4 w-4 mr-2" />
-                            Usul Ubah
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Usulan Perubahan</DialogTitle>
-                            <DialogDescription>
-                              Fitur ini akan memungkinkan Anda mengusulkan perubahan tanggal atau jumlah alat
-                            </DialogDescription>
-                          </DialogHeader>
-                          <p className="text-sm text-muted-foreground">
-                            Fitur "Usul Ubah" akan segera tersedia. Untuk saat ini, gunakan catatan untuk komunikasi dengan pemohon.
-                          </p>
-                        </DialogContent>
-                      </Dialog>
-
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="destructive"
-                            className="flex-1"
-                            disabled={processingId === request.id}
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Tolak
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Konfirmasi Penolakan</DialogTitle>
-                            <DialogDescription>
-                              Apakah Anda yakin ingin menolak permintaan ini?
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div>
-                              <Label htmlFor="reject-reason">Alasan Penolakan *</Label>
-                              <Textarea
-                                id="reject-reason"
-                                placeholder="Jelaskan alasan penolakan..."
-                                value={actionNotes}
-                                onChange={(e) => setActionNotes(e.target.value)}
-                                className="mt-2"
-                              />
+                    <div className="space-y-3">
+                      {/* Dual Option Buttons */}
+                      <div className="space-y-3">
+                        <Button
+                          onClick={() => handleDirectLetter(request.id)}
+                          disabled={processingId === request.id}
+                          variant="default"
+                          className="w-full neu-flat text-left"
+                          size="lg"
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <CheckCircle className="h-4 w-4" />
+                            <div className="text-center">
+                              <div>✅ Terima & Cetak Surat Langsung</div>
+                              <div className="text-xs opacity-80 mt-1">Untuk alat ringan/internal</div>
                             </div>
+                          </div>
+                        </Button>
+                        
+                        <Button
+                          onClick={() => handleSendToHeadmaster(request.id)}
+                          disabled={processingId === request.id}
+                          variant="outline"
+                          className="w-full neu-flat text-left"
+                          size="lg"
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <Edit3 className="h-4 w-4" />
+                            <div className="text-center">
+                              <div>📤 Kirim ke Kepala Sekolah</div>
+                              <div className="text-xs opacity-80 mt-1">Untuk alat penting/formal</div>
+                            </div>
+                          </div>
+                        </Button>
+                        
+                        <Dialog>
+                          <DialogTrigger asChild>
                             <Button
                               variant="destructive"
                               className="w-full"
-                              onClick={() => handleReject(request.id)}
-                              disabled={!actionNotes.trim()}
+                              disabled={processingId === request.id}
+                              size="lg"
                             >
-                              Tolak Permintaan
+                              <XCircle className="h-4 w-4 mr-2" />
+                              ❌ Tolak Permintaan
                             </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-
-                      <Button
-                        onClick={() => handleApprove(request.id)}
-                        disabled={processingId === request.id}
-                        className="flex-1 neu-raised hover:neu-pressed bg-success text-success-foreground"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Terima & Teruskan
-                      </Button>
+                          </DialogTrigger>
+                          <DialogContent className="mx-4">
+                            <DialogHeader>
+                              <DialogTitle>Konfirmasi Penolakan</DialogTitle>
+                              <DialogDescription>
+                                Apakah Anda yakin ingin menolak permintaan ini?
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label htmlFor="reject-reason">Alasan Penolakan *</Label>
+                                <Textarea
+                                  id="reject-reason"
+                                  placeholder="Jelaskan alasan penolakan..."
+                                  value={actionNotes}
+                                  onChange={(e) => setActionNotes(e.target.value)}
+                                  className="mt-2 neu-sunken"
+                                />
+                              </div>
+                              <Button
+                                variant="destructive"
+                                className="w-full"
+                                onClick={() => handleReject(request.id)}
+                                disabled={!actionNotes.trim()}
+                              >
+                                Tolak Permintaan
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -337,6 +380,7 @@ export default function OwnerInbox() {
           </div>
         )}
       </div>
-    </MainLayout>
+      <BottomNav />
+    </div>
   );
 }

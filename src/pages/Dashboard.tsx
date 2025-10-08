@@ -3,10 +3,13 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, FileText, Inbox, CheckCircle2, Clock, AlertCircle } from "lucide-react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { Package, FileText, Inbox, CheckCircle2, Clock, AlertCircle, LogOut, User } from "lucide-react";
+import { BottomNav } from "@/components/layout/BottomNav";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalItems: 0,
     myRequests: 0,
@@ -14,11 +17,28 @@ export default function Dashboard() {
     activeLoans: 0,
   });
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
     fetchStats();
     fetchUserRoles();
+    fetchUserProfile();
   }, []);
+
+  const fetchUserProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      
+      if (data) {
+        setUserProfile(data);
+      }
+    }
+  };
 
   const fetchUserRoles = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -70,6 +90,16 @@ export default function Dashboard() {
     });
   };
 
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error("Gagal logout");
+    } else {
+      toast.success("Berhasil logout");
+      navigate("/auth");
+    }
+  };
+
   const quickActions = [
     {
       title: "Ajukan Peminjaman",
@@ -98,100 +128,138 @@ export default function Dashboard() {
       title: "Pinjaman Aktif",
       description: "Kelola peminjaman aktif",
       icon: CheckCircle2,
-      link: "/active-loans",
+      link: "/realtime-data",
       color: "text-success",
     },
   ];
 
   return (
-    <MainLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Selamat datang di sistem peminjaman alat sekolah
-          </p>
+    <div className="min-h-screen bg-background pb-16">
+      <div className="container-mobile pt-6 space-y-6">
+        {/* User Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold mb-1">Dashboard</h1>
+            <p className="text-muted-foreground text-sm">
+              Halo, {userProfile?.full_name || "User"}
+            </p>
+            {userProfile?.unit && (
+              <p className="text-xs text-muted-foreground">{userProfile.unit}</p>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLogout}
+            className="neu-flat"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
         </div>
 
+        {/* Roles */}
+        {userRoles.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {userRoles.map((role) => (
+              <span key={role} className="px-3 py-1 bg-primary/10 text-primary text-xs rounded-full">
+                {role === "borrower" ? "Peminjam" : 
+                 role === "owner" ? "Pemilik Alat" :
+                 role === "headmaster" ? "Kepala Sekolah" :
+                 role === "admin" ? "Admin" : role}
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="neu-flat hover:neu-raised transition-all cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Alat Tersedia
-              </CardTitle>
-              <Package className="h-4 w-4 text-primary" />
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="neu-flat">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs font-medium text-muted-foreground">
+                  Alat Tersedia
+                </CardTitle>
+                <Package className="h-4 w-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalItems}</div>
+              <div className="text-xl font-bold">{stats.totalItems}</div>
             </CardContent>
           </Card>
 
-          <Card className="neu-flat hover:neu-raised transition-all cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pengajuan Saya
-              </CardTitle>
-              <FileText className="h-4 w-4 text-warning" />
+          <Card className="neu-flat">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs font-medium text-muted-foreground">
+                  Pengajuan Saya
+                </CardTitle>
+                <FileText className="h-4 w-4 text-warning" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.myRequests}</div>
+              <div className="text-xl font-bold">{stats.myRequests}</div>
             </CardContent>
           </Card>
 
           {(userRoles.includes("owner") || userRoles.includes("headmaster")) && (
-            <Card className="neu-flat hover:neu-raised transition-all cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Menunggu Persetujuan
-                </CardTitle>
-                <AlertCircle className="h-4 w-4 text-accent" />
+            <Card className="neu-flat">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-medium text-muted-foreground">
+                    Menunggu Approval
+                  </CardTitle>
+                  <AlertCircle className="h-4 w-4 text-accent" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.pendingApprovals}</div>
+                <div className="text-xl font-bold">{stats.pendingApprovals}</div>
               </CardContent>
             </Card>
           )}
 
-          <Card className="neu-flat hover:neu-raised transition-all cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pinjaman Aktif
-              </CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-success" />
+          <Card className="neu-flat">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs font-medium text-muted-foreground">
+                  Pinjaman Aktif
+                </CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-success" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.activeLoans}</div>
+              <div className="text-xl font-bold">{stats.activeLoans}</div>
             </CardContent>
           </Card>
         </div>
 
         {/* Quick Actions */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Aksi Cepat</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <h2 className="text-lg font-semibold mb-4">Aksi Cepat</h2>
+          <div className="grid grid-cols-1 gap-3">
             {quickActions.map((action) => (
               <Link key={action.title} to={action.link}>
-                <Card className="neu-flat hover:neu-raised transition-all h-full">
-                  <CardHeader>
+                <Card className="neu-flat hover:neu-raised transition-all">
+                  <CardContent className="py-4">
                     <div className="flex items-center space-x-3">
                       <div className="neu-raised p-3 rounded-xl">
-                        <action.icon className={`h-6 w-6 ${action.color}`} />
+                        <action.icon className={`h-5 w-5 ${action.color}`} />
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <CardTitle className="text-base">{action.title}</CardTitle>
                         <CardDescription className="text-sm">
                           {action.description}
                         </CardDescription>
                       </div>
                     </div>
-                  </CardHeader>
+                  </CardContent>
                 </Card>
               </Link>
             ))}
           </div>
         </div>
       </div>
-    </MainLayout>
+      <BottomNav />
+    </div>
   );
 }

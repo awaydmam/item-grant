@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,15 +9,22 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, X, ArrowLeft, Package } from "lucide-react";
+import { CalendarIcon, X, ArrowLeft, Package, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { useCart } from "@/hooks/use-cart";
+
+interface RequestItem {
+  item_id: string;
+  quantity: number;
+  name: string;
+  available_quantity: number;
+}
 
 export default function NewRequest() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { items: cartItems, updateQuantity, removeItem: removeFromCart, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
-  const cartItems = location.state?.cartItems || [];
 
   const [formData, setFormData] = useState({
     purpose: "",
@@ -26,14 +33,6 @@ export default function NewRequest() {
     pic_contact: "",
   });
 
-  const [selectedItems, setSelectedItems] = useState<any[]>(
-    cartItems.map((item: any) => ({
-      item_id: item.id,
-      quantity: item.requestedQuantity,
-      name: item.name,
-      available_quantity: item.available_quantity,
-    }))
-  );
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
 
@@ -43,14 +42,14 @@ export default function NewRequest() {
     }
   }, [cartItems, navigate]);
 
-  const removeItem = (index: number) => {
-    setSelectedItems(selectedItems.filter((_, i) => i !== index));
+  const removeItem = (itemId: string) => {
+    removeFromCart(itemId);
   };
 
-  const updateItemQuantity = (index: number, quantity: number) => {
-    const newItems = [...selectedItems];
-    newItems[index] = { ...newItems[index], quantity };
-    setSelectedItems(newItems);
+  const updateItemQuantity = (itemId: string, quantity: number) => {
+    if (quantity > 0) {
+      updateQuantity(itemId, quantity);
+    }
   };
 
   const handleSubmit = async () => {
@@ -84,10 +83,10 @@ export default function NewRequest() {
       if (requestError) throw requestError;
 
       // Create request items
-      const requestItems = selectedItems.map((item) => ({
+      const requestItems = cartItems.map((item) => ({
         request_id: request.id,
-        item_id: item.item_id,
-        quantity: item.quantity,
+        item_id: item.id,
+        quantity: item.requestedQuantity,
       }));
 
       const { error: itemsError } = await supabase
@@ -97,10 +96,12 @@ export default function NewRequest() {
       if (itemsError) throw itemsError;
 
       toast.success("Permintaan berhasil diajukan!");
+      clearCart(); // Clear cart after successful submission
       navigate("/my-requests");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
-      toast.error(error.message || "Gagal mengajukan permintaan");
+      const errorMessage = error instanceof Error ? error.message : "Gagal mengajukan permintaan";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -126,19 +127,23 @@ export default function NewRequest() {
       </div>
 
       <div className="container-mobile py-4 space-y-6">
-        {/* Selected Items */}
+        {/* Alat yang Diminta */}
         <Card className="neu-raised">
           <CardHeader>
-            <CardTitle className="text-lg">Selected Items ({selectedItems.length})</CardTitle>
+            <CardTitle className="text-lg">Alat yang Diminta ({cartItems.length})</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {selectedItems.map((item, index) => (
+            {cartItems.map((item) => (
               <div
-                key={index}
+                key={item.id}
                 className="flex gap-3 p-3 border border-border rounded-lg"
               >
                 <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center neu-sunken">
-                  <Package className="h-8 w-8 text-muted-foreground" />
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover rounded-lg" />
+                  ) : (
+                    <Package className="h-8 w-8 text-muted-foreground" />
+                  )}
                 </div>
                 
                 <div className="flex-1">
@@ -146,13 +151,13 @@ export default function NewRequest() {
                     <div>
                       <h4 className="font-semibold">{item.name}</h4>
                       <p className="text-xs text-muted-foreground">
-                        Available: {item.available_quantity}
+                        Tersedia: {item.available_quantity}
                       </p>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => removeItem(index)}
+                      onClick={() => removeItem(item.id)}
                       className="h-8 w-8"
                     >
                       <X className="h-4 w-4" />
@@ -163,20 +168,20 @@ export default function NewRequest() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => updateItemQuantity(index, Math.max(1, item.quantity - 1))}
-                      className="h-8 w-8 p-0"
+                      onClick={() => updateItemQuantity(item.id, Math.max(1, item.requestedQuantity - 1))}
+                      className="h-8 w-8 p-0 neu-pressed"
                     >
-                      -
+                      <Minus className="h-4 w-4" />
                     </Button>
                     <span className="font-semibold w-8 text-center">
-                      {item.quantity}
+                      {item.requestedQuantity}
                     </span>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => updateItemQuantity(index, Math.min(item.available_quantity, item.quantity + 1))}
-                      disabled={item.quantity >= item.available_quantity}
-                      className="h-8 w-8 p-0"
+                      onClick={() => updateItemQuantity(item.id, Math.min(item.available_quantity, item.requestedQuantity + 1))}
+                      disabled={item.requestedQuantity >= item.available_quantity}
+                      className="h-8 w-8 p-0 neu-flat"
                     >
                       +
                     </Button>
@@ -187,28 +192,28 @@ export default function NewRequest() {
           </CardContent>
         </Card>
 
-        {/* Request Details Form */}
+        {/* Detail Permintaan */}
         <Card className="neu-raised">
           <CardHeader>
-            <CardTitle className="text-lg">Request Details</CardTitle>
+            <CardTitle className="text-lg">Detail Permintaan</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="purpose">Purpose / Reason *</Label>
+              <Label htmlFor="purpose">Keperluan / Alasan *</Label>
               <Textarea
                 id="purpose"
                 value={formData.purpose}
                 onChange={(e) =>
                   setFormData({ ...formData, purpose: e.target.value })
                 }
-                placeholder="Describe the purpose of borrowing..."
+                placeholder="Jelaskan keperluan peminjaman alat..."
                 className="min-h-24 neu-sunken"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label>Start Date *</Label>
+                <Label>Tanggal Mulai *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -219,7 +224,7 @@ export default function NewRequest() {
                       {startDate ? (
                         format(startDate, "PPP")
                       ) : (
-                        <span>Pick a date</span>
+                        <span>Pilih tanggal</span>
                       )}
                     </Button>
                   </PopoverTrigger>
@@ -235,7 +240,7 @@ export default function NewRequest() {
               </div>
 
               <div>
-                <Label>End Date *</Label>
+                <Label>Tanggal Selesai *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button

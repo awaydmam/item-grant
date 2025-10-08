@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LayoutDashboard, Calendar } from "lucide-react";
+import { BottomNav } from "@/components/layout/BottomNav";
+import { Users, Calendar, Package } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -42,17 +42,17 @@ export default function PublicBoard() {
   };
 
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <div className="min-h-screen bg-background pb-16">
+      <div className="container-mobile pt-6 space-y-6">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Papan Publik</h1>
+          <h1 className="text-2xl font-bold mb-2">Papan Publik</h1>
           <p className="text-muted-foreground">Siapa sedang pinjam apa (realtime)</p>
         </div>
 
         {activeLoans.length === 0 ? (
           <Card className="neu-flat">
             <CardContent className="py-12 text-center">
-              <LayoutDashboard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">Tidak ada pinjaman aktif saat ini</p>
             </CardContent>
           </Card>
@@ -61,26 +61,42 @@ export default function PublicBoard() {
             {activeLoans.map((loan) => (
               <Card key={loan.id} className="neu-flat hover:neu-raised transition-all">
                 <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Badge>Dipinjam</Badge>
-                        <span className="font-medium">{loan.borrower?.unit}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {loan.request_items?.map((ri: any) => (
-                          <span key={ri.id} className="text-sm text-muted-foreground">
-                            {ri.item?.name} ({ri.quantity}x)
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="text-right text-sm text-muted-foreground">
+                  <div className="space-y-3">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>Kembali: {format(new Date(loan.end_date), "dd MMM", { locale: id })}</span>
+                        <Badge variant="default" className="flex items-center gap-1">
+                          <Package className="h-3 w-3" />
+                          Dipinjam
+                        </Badge>
+                        <span className="font-medium text-sm">{loan.borrower?.unit}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          <span>Kembali: {format(new Date(loan.end_date), "dd MMM", { locale: id })}</span>
+                        </div>
                       </div>
                     </div>
+
+                    {/* Items */}
+                    <div className="space-y-1">
+                      {loan.request_items?.map((ri: any) => (
+                        <div key={ri.id} className="flex items-center gap-2 text-sm">
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {ri.quantity}x
+                          </Badge>
+                          <span className="text-muted-foreground">{ri.item?.name}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Purpose */}
+                    {loan.purpose && (
+                      <div className="text-xs text-muted-foreground border-t pt-2">
+                        <span className="font-medium">Keperluan:</span> {loan.purpose}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -88,6 +104,7 @@ export default function PublicBoard() {
           </div>
         )}
       </div>
-    </MainLayout>
+      <BottomNav />
+    </div>
   );
 }

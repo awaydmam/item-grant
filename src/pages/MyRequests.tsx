@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, Calendar, MapPin, User, Download } from "lucide-react";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -81,19 +81,20 @@ export default function MyRequests() {
 
   if (loading) {
     return (
-      <MainLayout>
+      <div className="min-h-screen bg-background pb-16">
         <div className="flex items-center justify-center min-h-[400px]">
           <p className="text-muted-foreground">Memuat...</p>
         </div>
-      </MainLayout>
+        <BottomNav />
+      </div>
     );
   }
 
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <div className="min-h-screen bg-background pb-16">
+      <div className="container-mobile pt-6 space-y-6">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Pengajuan Saya</h1>
+          <h1 className="text-2xl font-bold mb-2">Pengajuan Saya</h1>
           <p className="text-muted-foreground">Pantau status pengajuan peminjaman Anda</p>
         </div>
 
@@ -108,15 +109,15 @@ export default function MyRequests() {
           <div className="space-y-4">
             {requests.map((request) => (
               <Card key={request.id} className="neu-flat hover:neu-raised transition-all">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        Pengajuan #{request.id.slice(0, 8)}
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+                        <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                        <span className="truncate">#{request.id.slice(0, 8)}</span>
                         {getStatusBadge(request.status)}
                       </CardTitle>
-                      <CardDescription>
+                      <CardDescription className="text-sm">
                         {getStatusMessage(request)}
                       </CardDescription>
                     </div>
@@ -124,10 +125,9 @@ export default function MyRequests() {
                       <Button
                         size="sm"
                         onClick={() => downloadLetter(request.id)}
-                        className="neu-raised"
+                        className="neu-raised flex-shrink-0"
                       >
-                        <Download className="h-4 w-4 mr-2" />
-                        Unduh Surat
+                        <Download className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
@@ -139,12 +139,12 @@ export default function MyRequests() {
                     <div className="space-y-1">
                       {request.request_items?.map((ri: any) => (
                         <div key={ri.id} className="flex items-center gap-2 text-sm">
-                          <Badge variant="outline" className="font-mono">
+                          <Badge variant="outline" className="font-mono text-xs">
                             {ri.quantity}x
                           </Badge>
-                          <span>{ri.item?.name}</span>
+                          <span className="flex-1 truncate">{ri.item?.name}</span>
                           {ri.item?.code && (
-                            <span className="text-muted-foreground">({ri.item.code})</span>
+                            <span className="text-muted-foreground text-xs">({ri.item.code})</span>
                           )}
                         </div>
                       ))}
@@ -152,25 +152,28 @@ export default function MyRequests() {
                   </div>
 
                   {/* Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <FileText className="h-4 w-4" />
-                      <span>Keperluan: {request.purpose}</span>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-start gap-2 text-muted-foreground">
+                      <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <span className="font-medium">Keperluan:</span>
+                        <p className="mt-1">{request.purpose}</p>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
+                      <Calendar className="h-4 w-4 flex-shrink-0" />
                       <span>
                         {format(new Date(request.start_date), "dd MMM", { locale: id })} - {format(new Date(request.end_date), "dd MMM yyyy", { locale: id })}
                       </span>
                     </div>
                     {request.location_usage && (
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <MapPin className="h-4 w-4" />
+                        <MapPin className="h-4 w-4 flex-shrink-0" />
                         <span>Lokasi: {request.location_usage}</span>
                       </div>
                     )}
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <User className="h-4 w-4" />
+                      <User className="h-4 w-4 flex-shrink-0" />
                       <span>PJ: {request.pic_name}</span>
                     </div>
                   </div>
@@ -225,6 +228,7 @@ export default function MyRequests() {
           </div>
         )}
       </div>
-    </MainLayout>
+      <BottomNav />
+    </div>
   );
 }

@@ -11,7 +11,8 @@ import {
   LogOut, 
   User,
   Menu,
-  X
+  X,
+  Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -23,7 +24,7 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [userRoles, setUserRoles] = useState<string[]>([]);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<{full_name?: string; avatar_url?: string} | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -94,6 +95,12 @@ export function MainLayout({ children }: MainLayoutProps) {
       : []),
     { path: "/active-loans", icon: CheckCircle2, label: "Pinjaman Aktif" },
     { path: "/public-board", icon: LayoutDashboard, label: "Papan Publik" },
+    ...(userRoles.includes("admin") || userRoles.includes("owner")
+      ? [{ path: "/manage-inventory", icon: Package, label: "Kelola Inventaris" }]
+      : []),
+    ...(userRoles.includes("admin")
+      ? [{ path: "/admin", icon: Settings, label: "Panel Admin" }]
+      : []),
   ];
 
   if (!session) {

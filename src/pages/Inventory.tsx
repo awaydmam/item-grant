@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Search, ShoppingCart, Filter, Package } from "lucide-react";
+import { Search, Package, Plus, Minus, ArrowLeft, Filter, ShoppingCart } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCart } from "@/hooks/useCart";
+import { toast } from "sonner";
 
 interface Item {
   id: string;
@@ -23,20 +25,40 @@ interface Item {
   departments: { name: string } | null;
 }
 
-interface CartItem extends Item {
-  requestedQuantity: number;
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface Department {
+  id: string;
+  name: string;
 }
 
 export default function Inventory() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { 
+    items: cartItems, 
+    addItem, 
+    removeItem, 
+    updateQuantity,
+    getTotalItems, 
+    isInCart,
+    getItemQuantity
+  } = useCart();
   const [items, setItems] = useState<Item[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
-  const [categories, setCategories] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>(
+    searchParams.get("department") || "all"
+  );
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const departmentName = searchParams.get("name") || "Semua Department";
 
   useEffect(() => {
     fetchData();
@@ -63,46 +85,44 @@ export default function Inventory() {
     return matchesSearch && matchesCategory && matchesDepartment && item.available_quantity > 0;
   });
 
-  const addToCart = (item: Item) => {
-    const existingItem = cart.find(i => i.id === item.id);
-    if (existingItem) {
-      if (existingItem.requestedQuantity < item.available_quantity) {
-        setCart(cart.map(i => 
-          i.id === item.id 
-            ? { ...i, requestedQuantity: i.requestedQuantity + 1 }
-            : i
-        ));
-      }
-    } else {
-      setCart([...cart, { ...item, requestedQuantity: 1 }]);
-    }
+  const getCartItem = (itemId: string) => {
+    return isInCart(itemId) ? { id: itemId, quantity: getItemQuantity(itemId) } : null;
   };
 
-  const removeFromCart = (itemId: string) => {
-    const item = cart.find(i => i.id === itemId);
-    if (item && item.requestedQuantity > 1) {
-      setCart(cart.map(i => 
-        i.id === itemId 
-          ? { ...i, requestedQuantity: i.requestedQuantity - 1 }
-          : i
-      ));
-    } else {
-      setCart(cart.filter(i => i.id !== itemId));
-    }
+  const handleAddToCart = (item: Item) => {
+    addItem({
+      id: item.id,
+      name: item.name,
+      department_id: item.department_id,
+      department_name: item.departments?.name || "Unknown",
+      available_quantity: item.available_quantity,
+      image_url: item.image_url,
+      location: item.location
+    });
+    toast.success(`${item.name} ditambahkan ke keranjang`);
   };
 
-  const isInCart = (itemId: string) => {
-    return cart.find(i => i.id === itemId);
+  const handleRemoveFromCart = (itemId: string) => {
+    removeItem(itemId);
+    toast.success("Item dihapus dari keranjang");
+  };
+
+  const handleUpdateQuantity = (itemId: string, newQuantity: number) => {
+    updateQuantity(itemId, newQuantity);
   };
 
   const getStatusBadge = (status: string, available: number) => {
-    if (available === 0) return <Badge variant="destructive">Out of Stock</Badge>;
-    if (available < 3) return <Badge variant="outline">Limited</Badge>;
-    return <Badge variant="default">Available</Badge>;
+    if (available === 0) return <Badge variant="destructive">Habis</Badge>;
+    if (available < 3) return <Badge variant="outline">Terbatas</Badge>;
+    return <Badge variant="default">Tersedia</Badge>;
   };
 
   const handleCheckout = () => {
-    navigate("/new-request", { state: { cartItems: cart } });
+    if (getTotalItems() === 0) {
+      toast.error("Keranjang kosong");
+      return;
+    }
+    navigate("/cart");
   };
 
   return (
@@ -111,7 +131,22 @@ export default function Inventory() {
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="container-mobile py-4">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold">Inventory</h1>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/departments')}
+                className="neu-flat"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-xl font-bold">{departmentName}</h1>
+                <p className="text-sm text-muted-foreground">
+                  {filteredItems.length} alat tersedia
+                </p>
+              </div>
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -170,13 +205,13 @@ export default function Inventory() {
           {filteredItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Package className="h-16 w-16 mb-4 opacity-50" />
-              <p className="text-lg">No items found</p>
+              <p className="text-lg">Tidak ada alat ditemukan</p>
             </div>
           ) : (
             filteredItems.map((item) => {
-              const cartItem = isInCart(item.id);
+              const cartItem = getCartItem(item.id);
               return (
-                <Card key={item.id} className="neu-raised p-4 hover:shadow-lg transition-shadow">
+                <Card key={item.id} className="neu-raised p-4 hover:shadow-lg transition-all">
                   <div className="flex gap-4">
                     {/* Item Image */}
                     <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center overflow-hidden neu-sunken">
@@ -200,7 +235,7 @@ export default function Inventory() {
                       </div>
 
                       <p className="text-sm text-muted-foreground mb-2">
-                        Available: {item.available_quantity}
+                        Tersedia: {item.available_quantity}
                       </p>
 
                       <div className="flex items-center gap-2">
@@ -209,31 +244,31 @@ export default function Inventory() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => removeFromCart(item.id)}
-                              className="neu-pressed"
+                              onClick={() => handleUpdateQuantity(item.id, cartItem.quantity - 1)}
+                              className="neu-pressed w-8 h-8 p-0"
                             >
-                              -
+                              <Minus className="h-4 w-4" />
                             </Button>
                             <span className="font-semibold w-8 text-center">
-                              {cartItem.requestedQuantity}
+                              {cartItem.quantity}
                             </span>
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => addToCart(item)}
-                              disabled={cartItem.requestedQuantity >= item.available_quantity}
-                              className="neu-flat"
+                              onClick={() => handleUpdateQuantity(item.id, cartItem.quantity + 1)}
+                              disabled={cartItem.quantity >= item.available_quantity}
+                              className="neu-flat w-8 h-8 p-0"
                             >
-                              +
+                              <Plus className="h-4 w-4" />
                             </Button>
                           </div>
                         ) : (
                           <Button
                             size="sm"
-                            onClick={() => addToCart(item)}
+                            onClick={() => handleAddToCart(item)}
                             className="w-full"
                           >
-                            Add to Request
+                            Request to Borrow
                           </Button>
                         )}
                       </div>
@@ -247,7 +282,7 @@ export default function Inventory() {
       </div>
 
       {/* Sticky Bottom Cart Bar */}
-      {cart.length > 0 && (
+      {getTotalItems() > 0 && (
         <div className="sticky-bottom-bar">
           <div className="container-mobile">
             <Button
@@ -256,7 +291,7 @@ export default function Inventory() {
               className="w-full relative"
             >
               <ShoppingCart className="mr-2 h-5 w-5" />
-              Request to Borrow ({cart.reduce((sum, item) => sum + item.requestedQuantity, 0)})
+              Ajukan Peminjaman ({getTotalItems()})
             </Button>
           </div>
         </div>

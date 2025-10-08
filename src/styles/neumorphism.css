@@ -1,0 +1,198 @@
+/* Neumorphism Design System */
+.neu-raised {
+  background: #F3F4F6;
+  border-radius: 16px;
+  box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff;
+  border: none;
+}
+
+.neu-sunken {
+  background: #F3F4F6;
+  border-radius: 12px;
+  box-shadow: inset 5px 5px 10px #d1d9e6, inset -5px -5px 10px #ffffff;
+  border: none;
+}
+
+.neu-flat {
+  background: linear-gradient(145deg, #ffffff, #e6e6e6);
+  border-radius: 8px;
+  box-shadow: 5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.neu-flat:hover {
+  box-shadow: 7px 7px 14px #d1d9e6, -7px -7px 14px #ffffff;
+  transform: translateY(-1px);
+}
+
+.neu-pressed {
+  background: #e6e6e6;
+  border-radius: 8px;
+  box-shadow: inset 3px 3px 6px #d1d9e6, inset -3px -3px 6px #ffffff;
+  border: none;
+}
+
+.neu-input {
+  background: #F3F4F6;
+  border-radius: 12px;
+  box-shadow: inset 5px 5px 10px #d1d9e6, inset -5px -5px 10px #ffffff;
+  border: none;
+  padding: 12px 16px;
+}
+
+.neu-input:focus {
+  outline: none;
+  box-shadow: inset 3px 3px 6px #d1d9e6, inset -3px -3px 6px #ffffff, 0 0 0 2px #2563EB;
+}
+
+/* Mobile Container */
+.container-mobile {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+@media (min-width: 640px) {
+  .container-mobile {
+    max-width: 640px;
+  }
+}
+
+/* Sticky Bottom Bar */
+.sticky-bottom-bar {
+  position: fixed;
+  bottom: 80px; /* Above bottom nav */
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  z-index: 30;
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid #e5e7eb;
+  z-index: 40;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Product Card Hover Effect */
+.product-card {
+  transition: all 0.3s ease;
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff;
+}
+
+/* Cart Floating Icon */
+.cart-floating {
+  background: #2563EB;
+  border-radius: 50%;
+  box-shadow: 6px 6px 12px #d1d9e6, -6px -6px 12px #ffffff;
+  padding: 12px;
+  color: white;
+}
+
+/* Status Timeline */
+.status-timeline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+}
+
+.step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 25px;
+  right: -50%;
+  width: 100%;
+  height: 2px;
+  background: #e5e7eb;
+  z-index: 1;
+}
+
+.step.active:not(:last-child)::after {
+  background: #2563EB;
+}
+
+.step-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #F3F4F6;
+  border: 3px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  font-size: 18px;
+  z-index: 2;
+  position: relative;
+}
+
+.step.active .step-icon {
+  background: #2563EB;
+  border-color: #2563EB;
+  color: white;
+}
+
+.step-text {
+  font-size: 12px;
+  text-align: center;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.step.active .step-text {
+  color: #2563EB;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .neu-raised {
+    background: #1f2937;
+    box-shadow: 8px 8px 16px #111827, -8px -8px 16px #374151;
+  }
+  
+  .neu-sunken {
+    background: #1f2937;
+    box-shadow: inset 5px 5px 10px #111827, inset -5px -5px 10px #374151;
+  }
+  
+  .neu-flat {
+    background: linear-gradient(145deg, #374151, #1f2937);
+    box-shadow: 5px 5px 10px #111827, -5px -5px 10px #374151;
+  }
+  
+  .neu-pressed {
+    background: #1f2937;
+    box-shadow: inset 3px 3px 6px #111827, inset -3px -3px 6px #374151;
+  }
+  
+  .neu-input {
+    background: #1f2937;
+    box-shadow: inset 5px 5px 10px #111827, inset -5px -5px 10px #374151;
+    color: #f9fafb;
+  }
+}

@@ -4,15 +4,21 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
+import Home from "./pages/Home";
+import Departments from "./pages/Departments";
 import Inventory from "./pages/Inventory";
-import NewRequest from "./pages/NewRequest";
-import MyRequests from "./pages/MyRequests";
+import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+import Orders from "./pages/Orders";
+import RequestDetail from "./pages/RequestDetail";
+import Profile from "./pages/Profile";
+import Realtime from "./pages/Realtime";
 import OwnerInbox from "./pages/OwnerInbox";
 import HeadmasterInbox from "./pages/HeadmasterInbox";
-import ActiveLoans from "./pages/ActiveLoans";
-import PublicBoard from "./pages/PublicBoard";
+import ManageInventory from "./pages/ManageInventory";
+import AddItem from "./pages/AddItem";
+import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -26,18 +32,27 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Index />} />
+          <Route path="/landing" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/realtime-data" element={<PublicBoard />} />
           
-          {/* Protected Routes */}
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          {/* Protected Routes - New Mobile-First Navigation */}
+          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/departments" element={<ProtectedRoute><Departments /></ProtectedRoute>} />
           <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-          <Route path="/new-request" element={<ProtectedRoute><NewRequest /></ProtectedRoute>} />
-          <Route path="/my-requests" element={<ProtectedRoute><MyRequests /></ProtectedRoute>} />
+          <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
+          <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+          <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+          <Route path="/orders/:requestId" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/realtime" element={<ProtectedRoute><Realtime /></ProtectedRoute>} />
+          
+          {/* Admin/Owner Routes */}
           <Route path="/owner-inbox" element={<ProtectedRoute><OwnerInbox /></ProtectedRoute>} />
           <Route path="/headmaster-inbox" element={<ProtectedRoute><HeadmasterInbox /></ProtectedRoute>} />
-          <Route path="/active-loans" element={<ProtectedRoute><ActiveLoans /></ProtectedRoute>} />
+          <Route path="/manage-inventory" element={<ProtectedRoute><ManageInventory /></ProtectedRoute>} />
+          <Route path="/add-item" element={<ProtectedRoute><AddItem /></ProtectedRoute>} />
+          <Route path="/edit-item/:id" element={<ProtectedRoute><AddItem /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
           
           <Route path="*" element={<NotFound />} />
         </Routes>
