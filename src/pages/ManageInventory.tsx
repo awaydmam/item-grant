@@ -10,6 +10,7 @@ import { Plus, Package, Edit, Trash2, Search, Filter, AlertCircle, Grid3X3, List
 import { useUserRole } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BottomNav } from "@/components/layout/BottomNav";
 
 interface Item {
   id: string;
@@ -46,6 +47,11 @@ export default function ManageInventory() {
   const navigate = useNavigate();
   const { hasRole, getUserDepartment, canManageInventory } = useUserRole();
 
+  // Simpan informasi user roles dan department sekali di awal
+  const [isOwnerOnly, setIsOwnerOnly] = useState(false);
+  const [userDepartment, setUserDepartment] = useState<string | null>(null);
+  const [canManage, setCanManage] = useState(true);
+
   // Refresh function for manual refresh
   const refreshData = useCallback(async () => {
     try {
@@ -66,10 +72,7 @@ export default function ManageInventory() {
         `)
         .order("created_at", { ascending: false });
 
-      // Filter by department if user is owner (not admin)
-      const userDepartment = getUserDepartment();
-      const isOwnerOnly = hasRole('owner') && !hasRole('admin');
-      
+      // Filter by department jika user owner-only
       if (isOwnerOnly && userDepartment) {
         const { data: deptData } = await supabase
           .from('departments')
@@ -97,23 +100,40 @@ export default function ManageInventory() {
     } finally {
       setLoading(false);
     }
-  }, [getUserDepartment, hasRole]);
+  }, [isOwnerOnly, userDepartment]);
 
+  // Effect untuk mengambil user role hanya sekali
+  useEffect(() => {
+    const checkUserAccess = () => {
+      // Simpan role informasi
+      const owner = hasRole('owner');
+      const admin = hasRole('admin');
+      const isOwnerOnlyValue = owner && !admin;
+      setIsOwnerOnly(isOwnerOnlyValue);
+      
+      // Simpan departemen user
+      const userDeptName = getUserDepartment();
+      setUserDepartment(userDeptName);
+      
+      // Check akses manajemen
+      const canManageValue = canManageInventory();
+      setCanManage(canManageValue);
+    };
+    
+    // Jalankan sekali dan tidak akan dijalankan lagi meskipun dependencies berubah
+    // karena kita hanya perlu nilai awalnya
+    if (!userDepartment && !isOwnerOnly) {
+      checkUserAccess();
+    }
+  }, [hasRole, getUserDepartment, canManageInventory, userDepartment, isOwnerOnly]);
+
+  // Effect untuk load data setelah role tersedia
   useEffect(() => {
     let isMounted = true;
     
     const loadData = async () => {
       try {
-        console.log('Loading data...');
         setLoading(true);
-        
-        // Check access without triggering re-renders
-        const canManage = canManageInventory();
-        console.log('Can manage inventory:', canManage);
-        
-        if (!canManage) {
-          console.warn('User cannot manage inventory, but allowing for debugging');
-        }
         
         // Fetch items
         let query = supabase
@@ -131,12 +151,8 @@ export default function ManageInventory() {
           `)
           .order("created_at", { ascending: false });
 
-        // Filter by department if user is owner (not admin)
-        const userDepartment = getUserDepartment();
-        const isOwnerOnly = hasRole('owner') && !hasRole('admin');
-        
+        // Filter by department jika user owner-only
         if (isOwnerOnly && userDepartment) {
-          console.log('Filtering by department:', userDepartment);
           const { data: deptData } = await supabase
             .from('departments')
             .select('id')
@@ -158,7 +174,6 @@ export default function ManageInventory() {
             console.error('Items error:', itemsResult.error);
             toast.error("Gagal mengambil data inventaris");
           } else {
-            console.log('Items loaded:', itemsResult.data?.length || 0);
             setItems(itemsResult.data || []);
           }
 
@@ -184,7 +199,7 @@ export default function ManageInventory() {
     return () => {
       isMounted = false;
     };
-  }, []); // Only run once on mount
+  }, [isOwnerOnly, userDepartment]); // Hanya bergantung pada state lokal
 
   const handleDeleteItem = async (itemId: string) => {
     if (!confirm("Apakah Anda yakin ingin menghapus barang ini?")) return;
@@ -393,7 +408,7 @@ export default function ManageInventory() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-16">
       {/* Enhanced Mobile-Friendly Header */}
       <div className="bg-white/95 backdrop-blur-sm shadow-sm border-b border-gray-200 sticky top-0 z-20">
         <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
@@ -411,8 +426,8 @@ export default function ManageInventory() {
                 Kelola Inventaris
               </h1>
               <p className="text-xs sm:text-sm text-gray-500 truncate">
-                {hasRole('owner') && !hasRole('admin') 
-                  ? `Departemen: ${getUserDepartment() || 'Tidak diatur'}`
+                {isOwnerOnly
+                  ? `Departemen: ${userDepartment || 'Tidak diatur'}`
                   : 'Semua Departemen'
                 }
               </p>
@@ -631,7 +646,7 @@ export default function ManageInventory() {
         )}
 
         {/* Floating Action Button untuk Tambah Barang */}
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-20 right-6 z-40">
           <Button
             onClick={() => navigate("/add-item")}
             size="lg"
@@ -640,6 +655,11 @@ export default function ManageInventory() {
             <Plus className="h-6 w-6 lg:mr-2" />
             <span className="hidden lg:inline">Tambah Barang</span>
           </Button>
+        </div>
+        
+        {/* Bottom Navigation */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50 bottom-nav">
+          <BottomNav />
         </div>
       </div>
     </div>

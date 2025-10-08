@@ -59,12 +59,11 @@ export default function AddItem() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const { hasRole, getUserDepartment, loading: roleLoading } = useUserRole();
-  
-  // Compute role values once to avoid unnecessary re-renders
-  const isOwner = hasRole('owner');
-  const isAdmin = hasRole('admin');
-  
-  const [loading, setLoading] = useState(false);
+
+  const [isOwner, setIsOwner] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const [loading, setLoading] = useState(true); // Start with loading true
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -86,86 +85,90 @@ export default function AddItem() {
 
   // Generate automatic code
   const generateCode = useCallback(() => {
-    const prefix = formData.category_id || "ITEM";
+    const prefix = formData.category_id 
+      ? categories.find(c => c.id === formData.category_id)?.name.toUpperCase().substring(0, 4) || 'ITEM' 
+      : 'ITEM';
     const timestamp = Date.now().toString().slice(-6);
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     return `${prefix}-${timestamp}-${random}`;
-  }, [formData.category_id]);
+  }, [formData.category_id, categories]);
 
   useEffect(() => {
-    let isMounted = true;
-    
-    const loadData = async () => {
-      try {
-        console.log('Loading AddItem data...');
-        setLoading(true);
-        
-        // Fetch categories and departments
-        const [categoriesResult, departmentsResult] = await Promise.all([
-          supabase.from("categories").select("*").order("name"),
-          supabase.from("departments").select("*").order("name")
-        ]);
+    // Only run logic when role information is available
+    if (!roleLoading) {
+      const owner = hasRole('owner');
+      const admin = hasRole('admin');
+      setIsOwner(owner);
+      setIsAdmin(admin);
 
-        if (isMounted) {
+      let isMounted = true;
+
+      const loadData = async () => {
+        try {
+          // Fetch common data
+          const [categoriesResult, departmentsResult] = await Promise.all([
+            supabase.from("categories").select("*").order("name"),
+            supabase.from("departments").select("*").order("name")
+          ]);
+
+          if (!isMounted) return;
+
           if (categoriesResult.data) setCategories(categoriesResult.data);
           if (departmentsResult.data) setDepartments(departmentsResult.data);
-        }
 
-        // If editing, fetch item data
-        if (isEditMode && id && isMounted) {
-          const { data, error } = await supabase
-            .from("items")
-            .select("*")
-            .eq("id", id)
-            .single();
-          
-          if (error) throw error;
-          
-          if (data) {
-            setFormData({
-              name: data.name || "",
-              code: data.code || "",
-              description: data.description || "",
-              category_id: data.category_id || "",
-              department_id: data.department_id || "",
-              quantity: data.quantity || 1,
-              location: data.location || "",
-              image_url: data.image_url || "",
-              status: data.status || "available"
-            });
-            setPreviewImage(data.image_url || "");
-          }
-        }
-
-        // Set default department for owner
-        if (!isEditMode && isOwner && !isAdmin && departmentsResult.data) {
-          const userDeptName = getUserDepartment();
-          if (userDeptName) {
-            const dept = departmentsResult.data.find(d => d.name === userDeptName);
-            if (dept && isMounted) {
-              setFormData(prev => ({ ...prev, department_id: dept.id }));
+          // Handle edit mode
+          if (isEditMode && id) {
+            const { data, error } = await supabase
+              .from("items")
+              .select("*")
+              .eq("id", id)
+              .single();
+            
+            if (error) throw error;
+            
+            if (data && isMounted) {
+              setFormData({
+                name: data.name || "",
+                code: data.code || "",
+                description: data.description || "",
+                category_id: data.category_id || "",
+                department_id: data.department_id || "",
+                quantity: data.quantity || 1,
+                location: data.location || "",
+                image_url: data.image_url || "",
+                status: data.status || "available"
+              });
+              setPreviewImage(data.image_url || "");
+            }
+          } 
+          // Handle new item mode for owners
+          else if (!isEditMode && owner && !admin && departmentsResult.data) {
+            const userDeptName = getUserDepartment();
+            if (userDeptName) {
+              const dept = departmentsResult.data.find(d => d.name === userDeptName);
+              if (dept && isMounted) {
+                setFormData(prev => ({ ...prev, department_id: dept.id }));
+              }
             }
           }
+        } catch (error) {
+          console.error("Error loading data:", error);
+          toast.error("Gagal memuat data.");
+          if (isEditMode) navigate("/manage-inventory");
+        } finally {
+          if (isMounted) {
+            setLoading(false);
+          }
         }
-      } catch (error) {
-        console.error("Error loading data:", error);
-        toast.error("Gagal memuat data");
-        if (isEditMode) {
-          navigate("/manage-inventory");
-        }
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    
-    if (!roleLoading) {
-      loadData();
-    }
+      };
 
-    return () => {
-      isMounted = false;
-    };
-  }, [roleLoading, isEditMode, id, navigate, getUserDepartment, isOwner, isAdmin]);
+      loadData();
+
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [roleLoading, isEditMode, id, navigate, hasRole, getUserDepartment]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
