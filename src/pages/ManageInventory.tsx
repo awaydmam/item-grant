@@ -46,10 +46,10 @@ export default function ManageInventory() {
   const navigate = useNavigate();
   const { hasRole, getUserDepartment, canManageInventory } = useUserRole();
 
-  const fetchItems = useCallback(async () => {
+  // Refresh function for manual refresh
+  const refreshData = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('Fetching items...');
       
       let query = supabase
         .from("items")
@@ -70,13 +70,7 @@ export default function ManageInventory() {
       const userDepartment = getUserDepartment();
       const isOwnerOnly = hasRole('owner') && !hasRole('admin');
       
-      console.log('User department:', userDepartment);
-      console.log('Is owner only:', isOwnerOnly);
-      console.log('User roles:', { isOwner: hasRole('owner'), isAdmin: hasRole('admin') });
-
       if (isOwnerOnly && userDepartment) {
-        console.log('Filtering by department:', userDepartment);
-        // Find department ID from name
         const { data: deptData } = await supabase
           .from('departments')
           .select('id')
@@ -85,59 +79,112 @@ export default function ManageInventory() {
           
         if (deptData) {
           query = query.eq('department_id', deptData.id);
-          console.log('Filtering by department ID:', deptData.id);
         }
       }
 
       const { data, error } = await query;
 
       if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+        console.error('Error refreshing:', error);
+        toast.error("Gagal memuat ulang data");
+      } else {
+        setItems(data || []);
+        toast.success("Data berhasil dimuat ulang");
       }
-
-      console.log('Items fetched:', data?.length || 0, 'items');
-      setItems(data || []);
     } catch (error) {
-      console.error("Error fetching items:", error);
-      toast.error("Gagal mengambil data inventaris: " + (error as Error).message);
+      console.error("Error refreshing items:", error);
+      toast.error("Gagal memuat ulang data");
     } finally {
       setLoading(false);
     }
   }, [getUserDepartment, hasRole]);
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name")
-        .order("name");
-
-      if (error) throw error;
-      setCategories(data || []);
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-    }
-  }, []);
-
   useEffect(() => {
-    const checkAccessAndFetch = async () => {
-      console.log('Checking access and fetching...');
-      console.log('Can manage inventory:', canManageInventory());
-      
-      // For debugging, allow access but log the result
-      if (!canManageInventory()) {
-        console.warn('User cannot manage inventory, but allowing for debugging');
-        // toast.error("Anda tidak memiliki akses untuk mengelola inventori");
-        // navigate("/");
-        // return;
+    let isMounted = true;
+    
+    const loadData = async () => {
+      try {
+        console.log('Loading data...');
+        setLoading(true);
+        
+        // Check access without triggering re-renders
+        const canManage = canManageInventory();
+        console.log('Can manage inventory:', canManage);
+        
+        if (!canManage) {
+          console.warn('User cannot manage inventory, but allowing for debugging');
+        }
+        
+        // Fetch items
+        let query = supabase
+          .from("items")
+          .select(`
+            *,
+            categories (
+              id,
+              name
+            ),
+            departments (
+              id,
+              name
+            )
+          `)
+          .order("created_at", { ascending: false });
+
+        // Filter by department if user is owner (not admin)
+        const userDepartment = getUserDepartment();
+        const isOwnerOnly = hasRole('owner') && !hasRole('admin');
+        
+        if (isOwnerOnly && userDepartment) {
+          console.log('Filtering by department:', userDepartment);
+          const { data: deptData } = await supabase
+            .from('departments')
+            .select('id')
+            .eq('name', userDepartment)
+            .single();
+            
+          if (deptData) {
+            query = query.eq('department_id', deptData.id);
+          }
+        }
+
+        const [itemsResult, categoriesResult] = await Promise.all([
+          query,
+          supabase.from("categories").select("id, name").order("name")
+        ]);
+
+        if (isMounted) {
+          if (itemsResult.error) {
+            console.error('Items error:', itemsResult.error);
+            toast.error("Gagal mengambil data inventaris");
+          } else {
+            console.log('Items loaded:', itemsResult.data?.length || 0);
+            setItems(itemsResult.data || []);
+          }
+
+          if (categoriesResult.error) {
+            console.error('Categories error:', categoriesResult.error);
+          } else {
+            setCategories(categoriesResult.data || []);
+          }
+          
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Error loading data:", error);
+        if (isMounted) {
+          toast.error("Gagal memuat data");
+          setLoading(false);
+        }
       }
-      
-      await Promise.all([fetchItems(), fetchCategories()]);
     };
     
-    checkAccessAndFetch();
-  }, [fetchItems, fetchCategories, canManageInventory]);
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Only run once on mount
 
   const handleDeleteItem = async (itemId: string) => {
     if (!confirm("Apakah Anda yakin ingin menghapus barang ini?")) return;
@@ -151,7 +198,7 @@ export default function ManageInventory() {
       if (error) throw error;
       
       toast.success("Barang berhasil dihapus");
-      fetchItems();
+      refreshData(); // Use refreshData instead of fetchItems
     } catch (error) {
       console.error("Error deleting item:", error);
       toast.error("Gagal menghapus barang");

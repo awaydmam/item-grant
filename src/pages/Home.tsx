@@ -33,10 +33,70 @@ export default function Home() {
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchUserData();
-    fetchStats();
-    fetchRecentActivity();
-  }, []);
+    let isMounted = true;
+    
+    const loadAllData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !isMounted) return;
+
+        // Fetch user data
+        const [profileResult, rolesResult] = await Promise.all([
+          supabase.from("profiles").select("*").eq("id", user.id).single(),
+          supabase.from("user_roles").select("role").eq("user_id", user.id)
+        ]);
+
+        if (isMounted) {
+          if (profileResult.data) setUserProfile({ ...profileResult.data, email: user.email });
+          if (rolesResult.data) setUserRoles(rolesResult.data.map(r => r.role));
+        }
+
+        // Fetch stats
+        const [itemsCount, requestsCount, activeCount, departmentsCount] = await Promise.all([
+          supabase.from("items").select("*", { count: "exact", head: true }),
+          supabase.from("borrow_requests").select("*", { count: "exact", head: true }).eq("borrower_id", user.id),
+          supabase.from("borrow_requests").select("*", { count: "exact", head: true }).eq("status", "active"),
+          supabase.from("departments").select("*", { count: "exact", head: true })
+        ]);
+
+        if (isMounted) {
+          setStats({
+            totalItems: itemsCount.count || 0,
+            myRequests: requestsCount.count || 0,
+            pendingApprovals: 0,
+            activeLoans: activeCount.count || 0,
+            totalDepartments: departmentsCount.count || 0,
+          });
+        }
+
+        // Fetch recent activity
+        const { data: activityData } = await supabase
+          .from("borrow_requests")
+          .select(`
+            id,
+            status,
+            created_at,
+            purpose,
+            request_items(item:items(name))
+          `)
+          .eq("borrower_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(3);
+
+        if (isMounted && activityData) {
+          setRecentActivity(activityData);
+        }
+      } catch (error) {
+        console.error("Error loading home data:", error);
+      }
+    };
+
+    loadAllData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Only run once on mount
 
   const fetchUserData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
