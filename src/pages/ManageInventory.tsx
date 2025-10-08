@@ -18,7 +18,6 @@ interface Item {
   code: string;
   description: string;
   quantity: number;
-  total_quantity?: number;
   available_quantity: number;
   status: string;
   image_url: string;

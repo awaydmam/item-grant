@@ -261,7 +261,6 @@ export default function AddItem() {
       const itemData = {
         ...formData,
         available_quantity: formData.quantity,
-        total_quantity: formData.quantity,
         updated_at: new Date().toISOString()
       };
       
