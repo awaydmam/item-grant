@@ -5,9 +5,11 @@ export interface CartItem {
   id: string;
   name: string;
   quantity: number;
-  category?: string;
-  image_url?: string;
+  department_id?: string;
+  department_name?: string;
   available_quantity: number;
+  image_url?: string;
+  location?: string;
 }
 
 interface CartState {

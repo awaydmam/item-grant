@@ -177,7 +177,7 @@ export default function Checkout() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Package className="h-5 w-5" />
-              Ringkasan Peminjaman ({totalItems} unit)
+              Ringkasan Peminjaman ({getTotalItems()} unit)
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">

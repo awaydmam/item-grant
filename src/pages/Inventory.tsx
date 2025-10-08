@@ -44,7 +44,7 @@ export default function Inventory() {
     removeItem, 
     updateQuantity,
     getTotalItems, 
-    isInCart,
+    isItemInCart,
     getItemQuantity
   } = useCart();
   const [items, setItems] = useState<Item[]>([]);
@@ -86,7 +86,7 @@ export default function Inventory() {
   });
 
   const getCartItem = (itemId: string) => {
-    return isInCart(itemId) ? { id: itemId, quantity: getItemQuantity(itemId) } : null;
+    return isItemInCart(itemId) ? { id: itemId, quantity: getItemQuantity(itemId) } : null;
   };
 
   const handleAddToCart = (item: Item) => {
