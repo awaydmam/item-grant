@@ -350,24 +350,35 @@ export default function RequestDetail() {
                   </Badge>
                 </div>
               </div>
-              
-              {(request.status === 'approved' || request.status === 'active' || request.status === 'completed') && request.letter_number && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDownloadLetter}
-                  className="rounded-xl bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Unduh Surat PDF
-                </Button>
-              )}
             </div>
             
             {request.letter_number && (
-              <div className="mt-4 p-3 bg-green-50 rounded-xl border border-green-200">
-                <p className="text-sm font-medium text-green-800">
-                  Nomor Surat: <span className="font-mono">{request.letter_number}</span>
+              <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-xs font-medium text-green-700 mb-1">Nomor Surat Resmi</p>
+                    <p className="text-base font-bold text-green-900 font-mono">{request.letter_number}</p>
+                  </div>
+                  <FileText className="h-8 w-8 text-green-600" />
+                </div>
+                <Button
+                  onClick={handleDownloadLetter}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl h-11"
+                  size="lg"
+                >
+                  <Download className="h-5 w-5 mr-2" />
+                  Download Surat Peminjaman (PDF)
+                </Button>
+                <p className="text-xs text-green-700 mt-2 text-center">
+                  Surat resmi lengkap dengan kop dan tanda tangan
+                </p>
+              </div>
+            )}
+            
+            {!request.letter_number && request.status !== 'rejected' && request.status !== 'cancelled' && (
+              <div className="mt-4 p-3 bg-yellow-50 rounded-xl border border-yellow-200">
+                <p className="text-sm text-yellow-800">
+                  ⏳ Surat sedang diproses. Tunggu persetujuan dari pemilik alat dan kepala sekolah.
                 </p>
               </div>
             )}

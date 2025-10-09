@@ -65,15 +65,52 @@ export default function Inventory() {
   }, []);
 
   const fetchData = async () => {
-    const [itemsRes, categoriesRes, departmentsRes] = await Promise.all([
-      supabase.from("items").select("*, categories(name), departments(name)"),
-      supabase.from("categories").select("*"),
-      supabase.from("departments").select("*")
-    ]);
+    try {
+      setLoading(true);
+      
+      // Get all items
+      const [itemsRes, categoriesRes, departmentsRes] = await Promise.all([
+        supabase.from("items").select("*, categories(name), departments(name)").order("name"),
+        supabase.from("categories").select("*"),
+        supabase.from("departments").select("*")
+      ]);
 
-    if (itemsRes.data) setItems(itemsRes.data);
-    if (categoriesRes.data) setCategories(categoriesRes.data);
-    if (departmentsRes.data) setDepartments(departmentsRes.data);
+      // Get active/approved requests to calculate borrowed items
+      const { data: activeRequests } = await supabase
+        .from("borrow_requests")
+        .select(`
+          request_items (
+            item_id,
+            quantity
+          )
+        `)
+        .in("status", ["approved", "active"]);
+
+      // Calculate borrowed quantities per item
+      const borrowedMap = new Map<string, number>();
+      activeRequests?.forEach(request => {
+        request.request_items?.forEach((item: any) => {
+          const current = borrowedMap.get(item.item_id) || 0;
+          borrowedMap.set(item.item_id, current + item.quantity);
+        });
+      });
+
+      // Filter items that have actual availability (not currently borrowed)
+      const availableItems = itemsRes.data?.filter(item => {
+        const borrowed = borrowedMap.get(item.id) || 0;
+        const actuallyAvailable = item.quantity - borrowed;
+        return actuallyAvailable > 0;
+      }) || [];
+
+      setItems(availableItems);
+      if (categoriesRes.data) setCategories(categoriesRes.data);
+      if (departmentsRes.data) setDepartments(departmentsRes.data);
+    } catch (error) {
+      console.error("Error loading inventory:", error);
+      toast.error("Gagal memuat data inventory");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredItems = items.filter(item => {
@@ -96,8 +133,7 @@ export default function Inventory() {
       department_id: item.department_id,
       department_name: item.departments?.name || "Unknown",
       available_quantity: item.available_quantity,
-      image_url: item.image_url,
-      location: item.location
+      image_url: item.image_url
     });
     toast.success(`${item.name} ditambahkan ke keranjang`);
   };
