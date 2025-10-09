@@ -54,6 +54,7 @@ interface RequestDetail {
       name: string;
       code: string;
       image_url: string;
+      description: string | null;
       departments: {
         name: string;
       };
@@ -68,22 +69,24 @@ export default function RequestDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchRequestDetail = async () => {
       try {
         const { data, error } = await supabase
           .from("borrow_requests")
           .select(`
             *,
-            borrower:profiles(full_name, unit, phone),
             request_items(
               id,
               quantity,
-              items(
+              items!inner(
                 id,
                 name,
                 code,
                 image_url,
-                departments(name)
+                description,
+                departments!inner(name)
               )
             )
           `)
@@ -91,19 +94,38 @@ export default function RequestDetail() {
           .single();
 
         if (error) throw error;
-        setRequest(data);
+        
+        // Fetch borrower info separately
+        const { data: borrowerData } = await supabase
+          .from("profiles")
+          .select("full_name, unit, phone")
+          .eq("id", data.borrower_id)
+          .single();
+        
+        if (isMounted) {
+          setRequest({
+            ...data,
+            borrower: borrowerData || { full_name: '', unit: '', phone: '' }
+          } as RequestDetail);
+        }
       } catch (error) {
         console.error("Error fetching request:", error);
-        toast.error("Gagal memuat detail permintaan");
-        navigate("/orders");
+        if (isMounted) {
+          toast.error("Gagal memuat detail permintaan");
+          navigate("/orders");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     if (requestId) {
       fetchRequestDetail();
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [requestId, navigate]);
 
   const getStatusInfo = (status: string) => {
@@ -181,18 +203,24 @@ export default function RequestDetail() {
     }
 
     try {
-      // Get owner and headmaster info
-      const { data: ownerData } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", request.borrower.id)
+      // Get headmaster info
+      const { data: headmasterRoles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "headmaster")
+        .limit(1)
         .single();
 
-      const { data: headmasterData } = await supabase
-        .from("user_roles")
-        .select("profiles(full_name)")
-        .eq("role", "headmaster")
-        .single();
+      let headmasterName = undefined;
+      if (headmasterRoles) {
+        const { data: headmasterProfile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", headmasterRoles.user_id)
+          .single();
+        
+        headmasterName = headmasterProfile?.full_name;
+      }
 
       // Prepare PDF data
       const pdfData = {
@@ -220,8 +248,7 @@ export default function RequestDetail() {
             }
           }))
         },
-        ownerName: ownerData?.full_name,
-        headmasterName: headmasterData?.profiles?.full_name,
+        headmasterName,
         schoolName: "SMK NEGERI 1 KOTA BEKASI",
         schoolAddress: "Jl. Bintara VIII No.2, Bintara, Kec. Bekasi Barat\nKota Bekasi, Jawa Barat 17134\nTelp: (021) 8844567 | Email: smkn1kotabekasi@gmail.com"
       };
@@ -236,11 +263,21 @@ export default function RequestDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-16">
-        <div className="container-mobile pt-6">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <p className="text-muted-foreground">Memuat detail permintaan...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-20">
+        <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200">
+          <div className="px-4 py-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gray-200 rounded-xl animate-pulse"></div>
+              <div className="space-y-2">
+                <div className="w-32 h-5 bg-gray-200 rounded-xl animate-pulse"></div>
+                <div className="w-24 h-3 bg-gray-200 rounded-xl animate-pulse"></div>
+              </div>
+            </div>
           </div>
+        </div>
+        <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4">
+          <div className="bg-white/80 rounded-xl p-6 h-32 animate-pulse"></div>
+          <div className="bg-white/80 rounded-xl p-6 h-48 animate-pulse"></div>
         </div>
         <BottomNav />
       </div>
@@ -249,14 +286,22 @@ export default function RequestDetail() {
 
   if (!request) {
     return (
-      <div className="min-h-screen bg-background pb-16">
-        <div className="container-mobile pt-6">
-          <div className="text-center">
-            <p className="text-muted-foreground">Permintaan tidak ditemukan</p>
-            <Button onClick={() => navigate("/orders")} className="mt-4">
-              Kembali ke Daftar Pesanan
-            </Button>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-20">
+        <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+            <CardContent className="py-16 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                <FileText className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2 text-gray-900">Permintaan Tidak Ditemukan</h3>
+              <p className="text-gray-600 mb-6">
+                Permintaan yang Anda cari tidak ditemukan atau telah dihapus
+              </p>
+              <Button onClick={() => navigate("/orders")} className="rounded-xl">
+                Kembali ke Daftar Pesanan
+              </Button>
+            </CardContent>
+          </Card>
         </div>
         <BottomNav />
       </div>
@@ -266,22 +311,22 @@ export default function RequestDetail() {
   const statusInfo = getStatusInfo(request.status);
 
   return (
-    <div className="min-h-screen bg-background pb-16">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="container-mobile py-4">
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+        <div className="px-4 py-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate("/orders")}
-              className="neu-flat"
+              className="rounded-xl hover:bg-gray-100"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-xl font-bold">Detail Permintaan</h1>
-              <p className="text-sm text-muted-foreground">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">Detail Permintaan</h1>
+              <p className="text-xs sm:text-sm text-gray-600">
                 #{request.id.slice(0, 8)}
               </p>
             </div>
@@ -289,16 +334,18 @@ export default function RequestDetail() {
         </div>
       </div>
 
-      <div className="container-mobile py-4 space-y-6">
+      <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4">
         {/* Status Card */}
-        <Card className="neu-flat">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+        <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
-                <statusInfo.icon className="h-6 w-6 text-muted-foreground" />
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${statusInfo.color}`}>
+                  <statusInfo.icon className="h-6 w-6" />
+                </div>
                 <div>
-                  <h3 className="font-semibold">Status Permintaan</h3>
-                  <Badge className={statusInfo.color}>
+                  <h3 className="font-semibold text-gray-900">Status Permintaan</h3>
+                  <Badge className={`${statusInfo.color} mt-1`}>
                     {statusInfo.label}
                   </Badge>
                 </div>
@@ -309,30 +356,38 @@ export default function RequestDetail() {
                   variant="outline"
                   size="sm"
                   onClick={handleDownloadLetter}
-                  className="neu-flat"
+                  className="rounded-xl bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Unduh Surat
+                  Unduh Surat PDF
                 </Button>
               )}
             </div>
+            
+            {request.letter_number && (
+              <div className="mt-4 p-3 bg-green-50 rounded-xl border border-green-200">
+                <p className="text-sm font-medium text-green-800">
+                  Nomor Surat: <span className="font-mono">{request.letter_number}</span>
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Action Buttons */}
         {(request.status === 'approved' || request.status === 'active') && (
-          <Card className="neu-flat">
-            <CardHeader>
-              <CardTitle className="text-lg">Kelola Peminjaman</CardTitle>
+          <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold text-gray-900">Kelola Peminjaman</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {request.status === 'approved' && (
                 <Button
                   onClick={handleStartLoan}
                   disabled={loading}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl h-11"
                 >
-                  <Package className="h-4 w-4 mr-2" />
+                  <Package className="h-5 w-5 mr-2" />
                   {loading ? "Memproses..." : "Mulai Peminjaman"}
                 </Button>
               )}
@@ -342,14 +397,14 @@ export default function RequestDetail() {
                   onClick={handleCompleteLoan}
                   disabled={loading}
                   variant="outline"
-                  className="w-full border-green-600 text-green-600 hover:bg-green-50"
+                  className="w-full border-green-600 text-green-600 hover:bg-green-50 rounded-xl h-11"
                 >
-                  <CheckCircle className="h-4 w-4 mr-2" />
+                  <CheckCircle className="h-5 w-5 mr-2" />
                   {loading ? "Memproses..." : "Selesaikan Peminjaman"}
                 </Button>
               )}
               
-              <div className="text-xs text-muted-foreground bg-blue-50 p-3 rounded-lg">
+              <div className="text-xs text-gray-700 bg-blue-50 p-3 rounded-xl">
                 <strong>Info:</strong>
                 {request.status === 'approved' && 
                   " Klik 'Mulai Peminjaman' untuk mengurangi stok alat dan mengubah status menjadi aktif."
@@ -363,87 +418,84 @@ export default function RequestDetail() {
         )}
 
         {/* Request Info */}
-        <Card className="neu-flat">
-          <CardHeader>
-            <CardTitle className="text-lg">Informasi Permintaan</CardTitle>
+        <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold text-gray-900">Informasi Permintaan</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Calendar className="h-5 w-5 text-blue-600" />
+              </div>
               <div>
-                <p className="font-medium">Periode Peminjaman</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="font-semibold text-gray-900">Periode Peminjaman</p>
+                <p className="text-sm text-gray-600">
                   {format(new Date(request.start_date), "dd MMM yyyy", { locale: id })} - {format(new Date(request.end_date), "dd MMM yyyy", { locale: id })}
                 </p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
-              <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <FileText className="h-5 w-5 text-purple-600" />
+              </div>
               <div>
-                <p className="font-medium">Keperluan</p>
-                <p className="text-sm text-muted-foreground">{request.purpose}</p>
+                <p className="font-semibold text-gray-900">Keperluan</p>
+                <p className="text-sm text-gray-600">{request.purpose}</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
-              <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <MapPin className="h-5 w-5 text-green-600" />
+              </div>
               <div>
-                <p className="font-medium">Lokasi Penggunaan</p>
-                <p className="text-sm text-muted-foreground">{request.location_usage}</p>
+                <p className="font-semibold text-gray-900">Lokasi Penggunaan</p>
+                <p className="text-sm text-gray-600">{request.location_usage}</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
-              <User className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <User className="h-5 w-5 text-orange-600" />
+              </div>
               <div>
-                <p className="font-medium">Penanggung Jawab</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="font-semibold text-gray-900">Penanggung Jawab</p>
+                <p className="text-sm text-gray-600">
                   {request.pic_name}
                 </p>
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <p className="text-sm text-gray-600 flex items-center gap-1">
                   <Phone className="h-3 w-3" />
                   {request.pic_contact}
                 </p>
               </div>
             </div>
-
-            {request.letter_number && (
-              <div className="flex items-start gap-3">
-                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="font-medium">Nomor Surat</p>
-                  <p className="text-sm text-muted-foreground">{request.letter_number}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Dibuat: {format(new Date(request.letter_generated_at), "dd MMM yyyy HH:mm", { locale: id })}
-                  </p>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
 
         {/* Items List */}
-        <Card className="neu-flat">
-          <CardHeader>
-            <CardTitle className="text-lg">Daftar Alat ({request.request_items.length})</CardTitle>
+        <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold text-gray-900">
+              Daftar Alat ({request.request_items.length})
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {request.request_items.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden neu-sunken">
+              <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                <div className="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center overflow-hidden">
                   {item.items.image_url ? (
                     <img src={item.items.image_url} alt={item.items.name} className="w-full h-full object-cover" />
                   ) : (
-                    <Package className="h-6 w-6 text-muted-foreground" />
+                    <Package className="h-7 w-7 text-gray-400" />
                   )}
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold">{item.items.name}</h4>
-                  <p className="text-sm text-muted-foreground">{item.items.code}</p>
-                  <p className="text-xs text-muted-foreground">{item.items.departments.name}</p>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-gray-900">{item.items.name}</h4>
+                  <p className="text-sm text-gray-600">{item.items.code}</p>
+                  <p className="text-xs text-gray-500">{item.items.departments.name}</p>
                 </div>
-                <Badge variant="secondary">
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 rounded-full px-3">
                   {item.quantity} unit
                 </Badge>
               </div>
@@ -453,36 +505,30 @@ export default function RequestDetail() {
 
         {/* Notes */}
         {(request.owner_notes || request.headmaster_notes || request.rejection_reason) && (
-          <Card className="neu-flat">
-            <CardHeader>
-              <CardTitle className="text-lg">Catatan</CardTitle>
+          <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold text-gray-900">Catatan</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {request.owner_notes && (
-                <div>
-                  <p className="font-medium text-sm">Catatan Pemilik Alat:</p>
-                  <p className="text-sm text-muted-foreground">{request.owner_notes}</p>
+                <div className="bg-blue-50 p-3 rounded-xl">
+                  <p className="font-semibold text-sm text-blue-900">Catatan Pemilik Alat:</p>
+                  <p className="text-sm text-blue-700 mt-1">{request.owner_notes}</p>
                 </div>
               )}
               
               {request.headmaster_notes && (
-                <>
-                  {request.owner_notes && <Separator />}
-                  <div>
-                    <p className="font-medium text-sm">Catatan Kepala Sekolah:</p>
-                    <p className="text-sm text-muted-foreground">{request.headmaster_notes}</p>
-                  </div>
-                </>
+                <div className="bg-purple-50 p-3 rounded-xl">
+                  <p className="font-semibold text-sm text-purple-900">Catatan Kepala Sekolah:</p>
+                  <p className="text-sm text-purple-700 mt-1">{request.headmaster_notes}</p>
+                </div>
               )}
               
               {request.rejection_reason && (
-                <>
-                  {(request.owner_notes || request.headmaster_notes) && <Separator />}
-                  <div>
-                    <p className="font-medium text-sm text-red-600">Alasan Penolakan:</p>
-                    <p className="text-sm text-red-500">{request.rejection_reason}</p>
-                  </div>
-                </>
+                <div className="bg-red-50 p-3 rounded-xl border border-red-200">
+                  <p className="font-semibold text-sm text-red-900">Alasan Penolakan:</p>
+                  <p className="text-sm text-red-700 mt-1">{request.rejection_reason}</p>
+                </div>
               )}
             </CardContent>
           </Card>
