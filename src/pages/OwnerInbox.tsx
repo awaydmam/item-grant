@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,18 +22,33 @@ import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { BorrowLetter } from "@/components/PDF/BorrowLetter";
 
 export default function OwnerInbox() {
-  const [requests, setRequests] = useState<any[]>([]);
+  interface RequestItem {
+    id: string;
+    quantity: number;
+    item?: { name: string; code?: string; department?: { name: string } };
+  }
+  interface BorrowRequest {
+    id: string;
+    purpose: string;
+    start_date: string;
+    end_date: string;
+    location_usage?: string;
+    pic_name: string;
+    pic_contact: string;
+    request_items?: RequestItem[];
+    borrower?: { full_name: string; unit: string; phone?: string };
+    owner_reviewer?: { full_name: string };
+  }
+  const [requests, setRequests] = useState<BorrowRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionNotes, setActionNotes] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [previewRequest, setPreviewRequest] = useState<any>(null);
+  const [previewRequest, setPreviewRequest] = useState<BorrowRequest | null>(null);
   const [showLetterPreview, setShowLetterPreview] = useState(false);
+  const [ownerProfile, setOwnerProfile] = useState<{ full_name: string; department?: string } | null>(null);
+  const [ownerDepartment, setOwnerDepartment] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRequests();
-  }, []);
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     const { data } = await supabase
       .from("borrow_requests")
       .select(`
@@ -42,14 +57,45 @@ export default function OwnerInbox() {
           *,
           item:items(name, code, department:departments(name))
         ),
-        borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit, phone)
+        borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit, phone),
+        owner_reviewer:profiles!borrow_requests_owner_reviewed_by_fkey(full_name)
       `)
       .eq("status", "pending_owner")
       .order("created_at", { ascending: false });
 
-    if (data) setRequests(data);
+    let filtered: BorrowRequest[] = (data as BorrowRequest[]) || [];
+    if (ownerDepartment) {
+      filtered = filtered.filter((req) =>
+        req.request_items?.some((ri) => ri.item?.department?.name === ownerDepartment)
+      );
+    }
+    setRequests(filtered);
     setLoading(false);
-  };
+  }, [ownerDepartment]);
+
+  const initOwnerAndRequests = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+      const { data: role } = await supabase
+        .from("user_roles")
+        .select("department, role")
+        .eq("user_id", user.id)
+        .eq("role", "owner")
+        .single();
+      setOwnerProfile(profile ? { full_name: profile.full_name, department: role?.department } : null);
+      setOwnerDepartment(role?.department || null);
+    }
+    fetchRequests();
+  }, [fetchRequests]);
+
+  useEffect(() => {
+    initOwnerAndRequests();
+  }, [initOwnerAndRequests]);
 
   const handleApprove = async (requestId: string) => {
     // This will be handled by the dual option buttons
@@ -83,9 +129,10 @@ export default function OwnerInbox() {
           *,
           request_items(
             *,
-            items(name, code, description)
+            items(name, code, description, department:departments(name))
           ),
-          borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit, phone)
+          borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit, phone),
+          owner_reviewer:profiles!borrow_requests_owner_reviewed_by_fkey(full_name)
         `)
         .eq("id", requestId)
         .single();
@@ -98,8 +145,8 @@ export default function OwnerInbox() {
       toast.success("Disetujui! Surat internal siap dicetak.");
       setActionNotes("");
       fetchRequests();
-    } catch (error: any) {
-      toast.error(error.message || "Gagal menyetujui permintaan");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Gagal menyetujui permintaan");
     } finally {
       setProcessingId(null);
     }
@@ -127,8 +174,8 @@ export default function OwnerInbox() {
       toast.success("Diteruskan ke Kepala Sekolah untuk persetujuan.");
       setActionNotes("");
       fetchRequests();
-    } catch (error: any) {
-      toast.error(error.message || "Gagal meneruskan permintaan");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Gagal meneruskan permintaan");
     } finally {
       setProcessingId(null);
     }
@@ -190,8 +237,8 @@ export default function OwnerInbox() {
       toast.success("Permintaan ditolak");
       setActionNotes("");
       fetchRequests();
-    } catch (error: any) {
-      toast.error(error.message || "Gagal menolak permintaan");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Gagal menolak permintaan");
     } finally {
       setProcessingId(null);
     }
@@ -202,35 +249,19 @@ export default function OwnerInbox() {
     
     try {
       // Get headmaster info
-      const { data: headmasterRoles } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "headmaster")
-        .single();
-
-      let headmasterName = undefined;
-      if (headmasterRoles) {
-        const { data: headmasterProfile } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", headmasterRoles.user_id)
-          .single();
-
-        headmasterName = headmasterProfile?.full_name;
-      }
-
-      // Get owner info
+      // Untuk surat internal tidak perlu headmasterName.
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: ownerProfile } = await supabase
+      if (!user) return null;
+      const { data: ownerProfileData } = await supabase
         .from("profiles")
         .select("full_name")
-        .eq("id", user?.id)
+        .eq("id", user.id)
         .single();
 
       return {
         request: previewRequest,
-        ownerName: ownerProfile?.full_name,
-        headmasterName,
+        ownerName: ownerProfileData?.full_name,
+        headmasterName: undefined,
         schoolName: "Darul Ma'arif",
         schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
         letterType: 'internal' as const
@@ -299,7 +330,7 @@ export default function OwnerInbox() {
                   <div>
                     <p className="text-sm font-medium mb-2">Alat yang Diminta:</p>
                     <div className="space-y-2">
-                      {request.request_items?.map((ri: any) => (
+                      {request.request_items?.map((ri: RequestItem) => (
                         <div
                           key={ri.id}
                           className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg"
@@ -470,7 +501,7 @@ export default function OwnerInbox() {
                   <BorrowLetter 
                     data={{
                       request: previewRequest,
-                      ownerName: "Pengelola Inventaris", // akan diupdate dengan data real
+                      ownerName: previewRequest?.owner_reviewer?.full_name || ownerProfile?.full_name || "Pengelola Inventaris",
                       headmasterName: undefined,
                       schoolName: "Darul Ma'arif",
                       schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
@@ -496,7 +527,7 @@ export default function OwnerInbox() {
                     <BorrowLetter 
                       data={{
                         request: previewRequest,
-                        ownerName: "Pengelola Inventaris",
+                        ownerName: previewRequest?.owner_reviewer?.full_name || ownerProfile?.full_name || "Pengelola Inventaris",
                         headmasterName: undefined,
                         schoolName: "Darul Ma'arif",
                         schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",

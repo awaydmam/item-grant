@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useCart } from "@/hooks/useCart";
 import { Badge } from "@/components/ui/badge";
+import { useUserRole } from "@/hooks/useUserRole";
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -25,6 +26,8 @@ export default function Checkout() {
     email: string;
   } | null>(null);
   const [useOwnContact, setUseOwnContact] = useState(false);
+  const { isOwner, getUserDepartment } = useUserRole();
+  const ownerDepartmentName = getUserDepartment();
 
   const [formData, setFormData] = useState({
     purpose: "",
@@ -87,6 +90,15 @@ export default function Checkout() {
     if (new Date(endDate) < new Date(startDate)) {
       toast.error("Tanggal selesai harus setelah tanggal mulai");
       return;
+    }
+
+    // Cek jika owner mencoba meminjam alat departemen sendiri
+    if (isOwner() && ownerDepartmentName) {
+      const selfOwned = cartItems.filter(ci => ci.department_name === ownerDepartmentName);
+      if (selfOwned.length > 0) {
+        toast.error("Owner tidak boleh meminjam alat milik departemen sendiri. Hapus item tersebut dari keranjang.");
+        return;
+      }
     }
 
     setLoading(true);

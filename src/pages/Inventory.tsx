@@ -10,6 +10,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCart } from "@/hooks/useCart";
 import { toast } from "sonner";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Item {
   id: string;
@@ -62,6 +63,8 @@ export default function Inventory() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const departmentName = searchParams.get("name") || "Semua Department";
+  const { isOwner, getUserDepartment } = useUserRole();
+  const ownerDepartmentName = getUserDepartment();
 
   useEffect(() => {
     fetchData();
@@ -166,6 +169,11 @@ export default function Inventory() {
   };
 
   const handleAddToCart = (item: Item) => {
+    // Jika user owner dan item milik departemen owner sendiri => blok
+    if (isOwner() && ownerDepartmentName && item.departments?.name === ownerDepartmentName) {
+      toast.error("Owner tidak bisa meminjam alat milik departemen sendiri");
+      return;
+    }
     addItem({
       id: item.id,
       name: item.name,
@@ -375,6 +383,15 @@ export default function Inventory() {
                               className="w-full bg-gray-200 text-gray-500 h-9 text-sm"
                             >
                               Tidak Tersedia
+                            </Button>
+                          ) : (isOwner() && ownerDepartmentName && item.departments?.name === ownerDepartmentName) ? (
+                            <Button
+                              size="sm"
+                              disabled
+                              className="w-full h-9 text-sm font-medium bg-gray-200 text-gray-500 cursor-not-allowed"
+                              title="Owner tidak boleh meminjam alat departemen sendiri"
+                            >
+                              Tidak Dapat Dipinjam
                             </Button>
                           ) : cartItem ? (
                             <div className="flex items-center justify-center gap-3">

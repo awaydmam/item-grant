@@ -60,10 +60,28 @@ export default function HeadmasterInbox() {
   const [selectedRequest, setSelectedRequest] = useState<BorrowRequest | null>(null);
   const [previewRequest, setPreviewRequest] = useState<BorrowRequest | null>(null);
   const [showLetterPreview, setShowLetterPreview] = useState(false);
+  const [headmasterName, setHeadmasterName] = useState<string>("Kepala Sekolah");
 
   useEffect(() => {
     fetchRequests();
+    fetchHeadmaster();
   }, []);
+
+  const fetchHeadmaster = async () => {
+    const { data: headmasterRole } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "headmaster")
+      .maybeSingle();
+    if (headmasterRole?.user_id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", headmasterRole.user_id)
+        .single();
+      if (profile?.full_name) setHeadmasterName(profile.full_name);
+    }
+  };
 
   const fetchRequests = async () => {
     const { data } = await supabase
@@ -552,8 +570,8 @@ export default function HeadmasterInbox() {
                   <BorrowLetter 
                     data={{
                       request: previewRequest,
-                      ownerName: "Pengelola Inventaris",
-                      headmasterName: "Kepala Sekolah", // nanti diambil dari database
+                      ownerName: previewRequest?.owner_reviewer?.full_name || "Pengelola Inventaris",
+                      headmasterName,
                       schoolName: "Darul Ma'arif",
                       schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
                       letterType: 'official'
@@ -578,8 +596,8 @@ export default function HeadmasterInbox() {
                     <BorrowLetter 
                       data={{
                         request: previewRequest,
-                        ownerName: "Pengelola Inventaris",
-                        headmasterName: "Kepala Sekolah",
+                        ownerName: previewRequest?.owner_reviewer?.full_name || "Pengelola Inventaris",
+                        headmasterName,
                         schoolName: "Darul Ma'arif",
                         schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
                         letterType: 'official'

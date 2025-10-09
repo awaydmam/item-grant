@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Calendar, MapPin, User, Download, Package, Clock, Eye } from "lucide-react";
+import { FileText, Calendar, MapPin, User, Download, Package, Clock, Eye, CheckCircle } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -12,7 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Orders() {
   const navigate = useNavigate();
-  const [requests, setRequests] = useState<any[]>([]);
+  interface RequestItem { quantity: number; items?: { name: string; code?: string }; }
+  interface BorrowRequest {
+    id: string; status: string; created_at: string; letter_number?: string; rejection_reason?: string;
+    purpose?: string; start_date?: string; end_date?: string; request_items?: RequestItem[];
+  }
+  const [requests, setRequests] = useState<BorrowRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,7 +51,7 @@ export default function Orders() {
   }, []);
 
   const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, { label: string; variant: any; color: string }> = {
+    const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive'; color: string }> = {
       draft: { label: "Draft", variant: "secondary", color: "text-gray-600" },
       pending_owner: { label: "Menunggu Owner", variant: "default", color: "text-blue-600" },
       pending_headmaster: { label: "Menunggu Kepsek", variant: "default", color: "text-orange-600" },
@@ -79,7 +84,7 @@ export default function Orders() {
     return progressMap[status] || 0;
   };
 
-  const getStatusMessage = (request: any) => {
+  const getStatusMessage = (request: BorrowRequest) => {
     switch (request.status) {
       case "pending_owner":
         return "Permintaan sedang direview oleh pemilik alat";
@@ -99,7 +104,7 @@ export default function Orders() {
   };
 
   const filterRequestsByStatus = (status: string[]) => {
-    return requests.filter(req => status.includes(req.status));
+    return requests.filter((req: BorrowRequest) => status.includes(req.status));
   };
 
   const downloadLetter = (requestId: string) => {
@@ -202,36 +207,100 @@ export default function Orders() {
             </CardContent>
           </Card>
         ) : (
-          <Tabs defaultValue="all" className="space-y-4">
+          <Tabs defaultValue="pending" className="space-y-4">
             <TabsList className="grid w-full grid-cols-4 bg-white/80 p-1 rounded-xl">
-              <TabsTrigger value="all" className="text-xs sm:text-sm rounded-lg">Semua</TabsTrigger>
               <TabsTrigger value="pending" className="text-xs sm:text-sm rounded-lg">Proses</TabsTrigger>
               <TabsTrigger value="active" className="text-xs sm:text-sm rounded-lg">Aktif</TabsTrigger>
               <TabsTrigger value="completed" className="text-xs sm:text-sm rounded-lg">Selesai</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs sm:text-sm rounded-lg">Semua</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="all" className="space-y-4">
-              {requests.map((request) => (
-                <OrderCard key={request.id} request={request} onDownload={downloadLetter} onViewDetail={viewDetail} />
-              ))}
-            </TabsContent>
-
+            {/* Tab PROSES */}
             <TabsContent value="pending" className="space-y-4">
-              {filterRequestsByStatus(['pending_owner', 'pending_headmaster', 'approved']).map((request) => (
-                <OrderCard key={request.id} request={request} onDownload={downloadLetter} onViewDetail={viewDetail} />
-              ))}
+              {(() => {
+                const pending = filterRequestsByStatus(['pending_owner', 'pending_headmaster', 'approved']);
+                if (pending.length === 0) {
+                  return (
+                    <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
+                      <CardContent className="py-12 text-center">
+                        <div className="w-14 h-14 bg-blue-50 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                          <Clock className="h-7 w-7 text-blue-400" />
+                        </div>
+                        <h3 className="text-base font-semibold mb-2 text-gray-900">Belum Ada yang Sedang Diproses</h3>
+                        <p className="text-gray-600 text-sm max-w-xs mx-auto">Pengajuan baru akan muncul di sini setelah Anda mengirim permintaan.</p>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+                return pending.map((request) => (
+                  <OrderCard key={request.id} request={request} onDownload={downloadLetter} onViewDetail={viewDetail} />
+                ));
+              })()}
             </TabsContent>
 
+            {/* Tab AKTIF */}
             <TabsContent value="active" className="space-y-4">
-              {filterRequestsByStatus(['active']).map((request) => (
-                <OrderCard key={request.id} request={request} onDownload={downloadLetter} onViewDetail={viewDetail} />
-              ))}
+              {(() => {
+                const active = filterRequestsByStatus(['active']);
+                if (active.length === 0) {
+                  return (
+                    <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
+                      <CardContent className="py-12 text-center">
+                        <div className="w-14 h-14 bg-purple-50 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                          <Package className="h-7 w-7 text-purple-400" />
+                        </div>
+                        <h3 className="text-base font-semibold mb-2 text-gray-900">Tidak Ada Peminjaman Aktif</h3>
+                        <p className="text-gray-600 text-sm max-w-xs mx-auto">Saat peminjaman disetujui dan sedang berjalan akan tampil di sini.</p>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+                return active.map((request) => (
+                  <OrderCard key={request.id} request={request} onDownload={downloadLetter} onViewDetail={viewDetail} />
+                ));
+              })()}
             </TabsContent>
 
+            {/* Tab SELESAI */}
             <TabsContent value="completed" className="space-y-4">
-              {filterRequestsByStatus(['completed', 'rejected', 'cancelled']).map((request) => (
-                <OrderCard key={request.id} request={request} onDownload={downloadLetter} onViewDetail={viewDetail} />
-              ))}
+              {(() => {
+                const completed = filterRequestsByStatus(['completed', 'rejected', 'cancelled']);
+                if (completed.length === 0) {
+                  return (
+                    <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
+                      <CardContent className="py-12 text-center">
+                        <div className="w-14 h-14 bg-green-50 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                          <CheckCircle className="h-7 w-7 text-green-500" />
+                        </div>
+                        <h3 className="text-base font-semibold mb-2 text-gray-900">Belum Ada Riwayat</h3>
+                        <p className="text-gray-600 text-sm max-w-xs mx-auto">Riwayat selesai / ditolak akan muncul setelah proses berakhir.</p>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+                return completed.map((request) => (
+                  <OrderCard key={request.id} request={request} onDownload={downloadLetter} onViewDetail={viewDetail} />
+                ));
+              })()}
+            </TabsContent>
+
+            {/* Tab SEMUA */}
+            <TabsContent value="all" className="space-y-4">
+              {requests.length === 0 ? (
+                <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
+                  <CardContent className="py-12 text-center">
+                    <div className="w-14 h-14 bg-gray-100 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                      <FileText className="h-7 w-7 text-gray-400" />
+                    </div>
+                    <h3 className="text-base font-semibold mb-2 text-gray-900">Tidak Ada Data</h3>
+                    <p className="text-gray-600 text-sm max-w-xs mx-auto">Belum ada pengajuan apapun.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                requests.map((request) => (
+                  <OrderCard key={request.id} request={request} onDownload={downloadLetter} onViewDetail={viewDetail} />
+                ))
+              )}
             </TabsContent>
           </Tabs>
         )}
@@ -243,12 +312,12 @@ export default function Orders() {
 }
 
 function OrderCard({ request, onDownload, onViewDetail }: { 
-  request: any; 
+  request: { id: string; status: string; created_at: string; rejection_reason?: string; letter_number?: string; purpose?: string; start_date?: string; end_date?: string; request_items?: { id?: string; quantity: number; items?: { name: string; code?: string } }[] };
   onDownload: (id: string) => void;
   onViewDetail: (id: string) => void;
 }) {
   const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, { label: string; variant: any }> = {
+    const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
       draft: { label: "Draft", variant: "secondary" },
       pending_owner: { label: "Menunggu Owner", variant: "default" },
       pending_headmaster: { label: "Menunggu Kepsek", variant: "default" },
@@ -263,7 +332,7 @@ function OrderCard({ request, onDownload, onViewDetail }: {
     return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
   };
 
-  const getStatusMessage = (request: any) => {
+  const getStatusMessage = (request: { status: string; rejection_reason?: string; letter_number?: string }) => {
     switch (request.status) {
       case "pending_owner":
         return "Menunggu review pemilik alat";
@@ -326,8 +395,8 @@ function OrderCard({ request, onDownload, onViewDetail }: {
             {request.request_items?.length} Alat Dipinjam:
           </p>
           <div className="space-y-2">
-            {request.request_items?.slice(0, 2).map((ri: any) => (
-              <div key={ri.id} className="flex items-center gap-2">
+            {request.request_items?.slice(0, 2).map((ri, idx) => (
+              <div key={ri.id || idx} className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
                   <Package className="h-4 w-4 text-gray-600" />
                 </div>
