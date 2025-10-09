@@ -18,6 +18,7 @@ import OwnerInbox from "./pages/OwnerInbox";
 import HeadmasterInbox from "./pages/HeadmasterInbox";
 import ManageInventory from "./pages/ManageInventory";
 import AddItem from "./pages/AddItem";
+import BulkUploadItems from "./pages/BulkUploadItems";
 import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -52,6 +53,7 @@ const App = () => (
           <Route path="/manage-inventory" element={<ProtectedRoute><ManageInventory /></ProtectedRoute>} />
           <Route path="/add-item" element={<ProtectedRoute><AddItem /></ProtectedRoute>} />
           <Route path="/edit-item/:id" element={<ProtectedRoute><AddItem /></ProtectedRoute>} />
+          <Route path="/bulk-upload-items" element={<ProtectedRoute><BulkUploadItems /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
           
           <Route path="*" element={<NotFound />} />

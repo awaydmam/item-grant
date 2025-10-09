@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Package, Edit, Trash2, Search, Filter, AlertCircle, Grid3X3, List, ArrowLeft, Menu, CheckCircle, Clock } from "lucide-react";
+import { Plus, Package, Edit, Trash2, Search, Filter, AlertCircle, Grid3X3, List, ArrowLeft, Menu, CheckCircle, Clock, Upload } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -434,15 +434,25 @@ export default function ManageInventory() {
                 </p>
               </div>
             </div>
-            <Button
-              onClick={() => navigate("/add-item")}
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl neu-button-raised hover:neu-button-pressed border-0"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Tambah</span>
-              <span className="sm:hidden">+</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => navigate("/bulk-upload-items")}
+                size="icon"
+                title="Upload Excel"
+                className="bg-green-600 hover:bg-green-700 text-white w-10 h-10 rounded-xl neu-button-raised hover:neu-button-pressed border-0"
+              >
+                <Upload className="h-4 w-4" />
+              </Button>
+              <Button
+                onClick={() => navigate("/add-item")}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl neu-button-raised hover:neu-button-pressed border-0"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Tambah</span>
+                <span className="sm:hidden">+</span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
