@@ -51,6 +51,8 @@ interface FormData {
   category_id: string;
   department_id: string;
   quantity: number;
+  damaged_quantity?: number; // jumlah unit rusak (tidak bisa dipinjam)
+  lost_quantity?: number; // jumlah unit hilang (tidak bisa dipinjam)
   location: string;
   image_url: string;
   status: "available" | "maintenance" | "reserved" | "borrowed" | "damaged" | "lost";
@@ -91,6 +93,8 @@ export default function AddItem() {
     category_id: "",
     department_id: "",
     quantity: 1,
+    damaged_quantity: 0,
+    lost_quantity: 0,
     location: "",
     image_url: "",
     status: "available" as const
@@ -429,6 +433,12 @@ export default function AddItem() {
     if (!formData.department_id) newErrors.department_id = "Departemen harus dipilih";
     if (formData.quantity < 1) newErrors.quantity = "Jumlah minimal 1";
     if (!formData.location.trim()) newErrors.location = "Lokasi harus diisi";
+    // Validasi tambahan untuk rusak & hilang
+    const damaged = formData.damaged_quantity ?? 0;
+    const lost = formData.lost_quantity ?? 0;
+    if (damaged < 0) newErrors.quantity = "Jumlah rusak tidak boleh negatif";
+    if (lost < 0) newErrors.quantity = "Jumlah hilang tidak boleh negatif";
+    if (damaged + lost > formData.quantity) newErrors.quantity = "Rusak + hilang melebihi total";
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -526,12 +536,34 @@ export default function AddItem() {
 
         if (fetchError) throw fetchError;
 
-        // Hitung perubahan quantity
-        const quantityDifference = formData.quantity - (oldItem?.quantity || 0);
-        const newAvailableQuantity = Math.max(0, (oldItem?.available_quantity || 0) + quantityDifference);
+        // Ambil nilai rusak & hilang lama (fallback 0)
+  interface ItemDB { damaged_quantity?: number; lost_quantity?: number; quantity?: number; available_quantity?: number; }
+  const castOld = oldItem as ItemDB;
+  const oldDamaged = castOld?.damaged_quantity || 0;
+  const oldLost = castOld?.lost_quantity || 0;
+        const newDamaged = formData.damaged_quantity ?? oldDamaged ?? 0;
+        const newLost = formData.lost_quantity ?? oldLost ?? 0;
 
-        const itemData = {
+        // Hitung jumlah sedang dipinjam (borrowed) berdasarkan data lama
+        // borrowed = total lama - available lama - damaged lama - lost lama (fallback jika kolom baru belum ada)
+        const borrowedQuantity = Math.max(0, (oldItem?.quantity || 0) - (oldItem?.available_quantity || 0) - oldDamaged - oldLost);
+
+        // Validasi: pastikan kapasitas baru cukup untuk borrowed yang masih aktif
+        if (formData.quantity - newDamaged - newLost < borrowedQuantity) {
+          toast.error("Total - (rusak+hilang) kurang dari jumlah yang sedang dipinjam");
+          setSaving(false);
+          return;
+        }
+
+        // Hitung perubahan quantity total (untuk pencatatan)
+        const quantityDifference = formData.quantity - (oldItem?.quantity || 0);
+        // Available baru = total baru - borrowed tetap - damaged baru - lost baru
+        const newAvailableQuantity = Math.max(0, formData.quantity - borrowedQuantity - newDamaged - newLost);
+
+        const itemData: ItemDB & typeof formData & { available_quantity: number; updated_at: string } = {
           ...formData,
+          damaged_quantity: newDamaged,
+            lost_quantity: newLost,
           available_quantity: newAvailableQuantity,
           updated_at: new Date().toISOString()
         };
@@ -555,9 +587,19 @@ export default function AddItem() {
         toast.success("Barang berhasil diperbarui");
       } else {
         // Mode Tambah Baru
-        const itemData = {
+        const damaged = formData.damaged_quantity ?? 0;
+        const lost = formData.lost_quantity ?? 0;
+        const baseAvailable = formData.quantity - damaged - lost;
+        if (baseAvailable < 0) {
+          toast.error("(Rusak + Hilang) melebihi total");
+          setSaving(false);
+          return;
+        }
+        const itemData: { damaged_quantity: number; lost_quantity: number; available_quantity: number; updated_at: string } & typeof formData = {
           ...formData,
-          available_quantity: formData.quantity, // Available quantity sama dengan total quantity untuk item baru
+          damaged_quantity: damaged,
+          lost_quantity: lost,
+          available_quantity: baseAvailable, // total - (rusak + hilang)
           updated_at: new Date().toISOString()
         };
 
@@ -638,6 +680,14 @@ export default function AddItem() {
     
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
+      if (['damaged_quantity','lost_quantity','quantity'].includes(field)) {
+        const total = field === 'quantity' ? Number(value) : (newData.quantity);
+        const damaged = field === 'damaged_quantity' ? Number(value) : (newData.damaged_quantity ?? 0);
+        const lost = field === 'lost_quantity' ? Number(value) : (newData.lost_quantity ?? 0);
+        if (damaged + lost > total) {
+          toast.warning("Rusak + Hilang melebihi Total");
+        }
+      }
       console.log(`📝 Updated formData:`, newData);
       return newData;
     });
@@ -1060,6 +1110,46 @@ export default function AddItem() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              {/* Tambahan breakdown kondisi */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="damaged_quantity" className="text-sm font-medium text-gray-700 mb-2 flex items-center justify-between">
+                    <span>Rusak</span>
+                    <span className="text-[10px] text-gray-500">Tidak tersedia</span>
+                  </Label>
+                  <Input
+                    id="damaged_quantity"
+                    type="number"
+                    min="0"
+                    value={formData.damaged_quantity ?? 0}
+                    onChange={(e) => handleInputChange("damaged_quantity", Math.max(0, parseInt(e.target.value) || 0))}
+                    className="neu-sunken border-0 bg-white/50 h-11"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="lost_quantity" className="text-sm font-medium text-gray-700 mb-2 flex items-center justify-between">
+                    <span>Hilang</span>
+                    <span className="text-[10px] text-gray-500">Tidak tersedia</span>
+                  </Label>
+                  <Input
+                    id="lost_quantity"
+                    type="number"
+                    min="0"
+                    value={formData.lost_quantity ?? 0}
+                    onChange={(e) => handleInputChange("lost_quantity", Math.max(0, parseInt(e.target.value) || 0))}
+                    className="neu-sunken border-0 bg-white/50 h-11"
+                  />
+                </div>
+              </div>
+
+              <div className="text-xs text-gray-500 -mt-1">
+                {(formData.damaged_quantity ?? 0) + (formData.lost_quantity ?? 0) > 0 && (
+                  <span>
+                    Total tidak tersedia permanen: {(formData.damaged_quantity ?? 0) + (formData.lost_quantity ?? 0)} unit • Tersedia efektif: {Math.max(0, formData.quantity - ((formData.damaged_quantity ?? 0) + (formData.lost_quantity ?? 0)))}
+                  </span>
+                )}
               </div>
 
               <div>

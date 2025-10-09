@@ -20,6 +20,8 @@ interface Item {
   quantity: number;
   available_quantity: number;
   borrowed_quantity?: number;
+  damaged_quantity?: number;
+  lost_quantity?: number;
   status: string;
   image_url: string;
   category_id: string;
@@ -339,10 +341,13 @@ export default function Inventory() {
                             {(() => {
                               // Normalisasi & sanity check
                               const rawQuantity = typeof item.quantity === 'number' ? item.quantity : Number(item.quantity) || 0;
+                              const damaged = typeof item.damaged_quantity === 'number' ? item.damaged_quantity : 0;
+                              const lost = typeof item.lost_quantity === 'number' ? item.lost_quantity : 0;
+                              // borrowed fallback dihitung dengan memperhitungkan damaged & lost jika kolom belum lengkap
                               const borrowed = typeof item.borrowed_quantity === 'number'
                                 ? item.borrowed_quantity
-                                : Math.max(0, rawQuantity - (item.available_quantity ?? 0));
-                              const available = Math.max(0, rawQuantity - borrowed);
+                                : Math.max(0, rawQuantity - (item.available_quantity ?? 0) - damaged - lost);
+                              const available = Math.max(0, rawQuantity - borrowed - damaged - lost);
 
                               // Deteksi anomali (misal faktor 10)
                               if (rawQuantity > 0 && available > rawQuantity) {
@@ -360,9 +365,9 @@ export default function Inventory() {
                                 <p className="text-sm text-muted-foreground leading-relaxed">
                                   <span className="font-medium">Total:</span> {rawQuantity}
                                   {' • '}<span className="font-medium">Tersedia:</span> {available}
-                                  {borrowed > 0 && (
-                                    <span>{' • '}<span className="font-medium">Dipinjam:</span> {borrowed}</span>
-                                  )}
+                                  {borrowed > 0 && (<span>{' • '}<span className="font-medium">Dipinjam:</span> {borrowed}</span>)}
+                                  {damaged > 0 && (<span>{' • '}<span className="font-medium">Rusak:</span> {damaged}</span>)}
+                                  {lost > 0 && (<span>{' • '}<span className="font-medium">Hilang:</span> {lost}</span>)}
                                 </p>
                               );
                             })()}

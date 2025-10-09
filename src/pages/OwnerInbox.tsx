@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { toast } from "sonner";
-import { Inbox, CheckCircle, XCircle, Edit3, Calendar, User, FileText, Download, Eye } from "lucide-react";
+import { Inbox, CheckCircle, XCircle, Edit3, Calendar, User, FileText, Download, Eye, FilePreview } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import {
@@ -45,6 +45,7 @@ export default function OwnerInbox() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [previewRequest, setPreviewRequest] = useState<BorrowRequest | null>(null);
   const [showLetterPreview, setShowLetterPreview] = useState(false);
+  const [draftMode, setDraftMode] = useState(false); // bedakan preview draft vs setelah approve
   const [ownerProfile, setOwnerProfile] = useState<{ full_name: string; department?: string } | null>(null);
   const [ownerDepartment, setOwnerDepartment] = useState<string | null>(null);
 
@@ -147,6 +148,34 @@ export default function OwnerInbox() {
       fetchRequests();
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Gagal menyetujui permintaan");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Preview draft tanpa mengubah status
+  const handlePreviewDraft = async (requestId: string) => {
+    try {
+      setProcessingId(requestId);
+      setDraftMode(true);
+      // Ambil data lengkap request untuk PDF
+      const { data: requestData, error } = await supabase
+        .from('borrow_requests')
+        .select(`
+          *,
+          request_items(*, items(name, code, description, department:departments(name))),
+          borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit, phone),
+          owner_reviewer:profiles!borrow_requests_owner_reviewed_by_fkey(full_name)
+        `)
+        .eq('id', requestId)
+        .single();
+      if (error) throw error;
+      if (requestData) {
+        setPreviewRequest(requestData);
+        setShowLetterPreview(true);
+      }
+    } catch (e) {
+      toast.error('Gagal memuat draft surat');
     } finally {
       setProcessingId(null);
     }
@@ -398,6 +427,21 @@ export default function OwnerInbox() {
                       {/* Dual Option Buttons */}
                       <div className="space-y-3">
                         <Button
+                          onClick={() => handlePreviewDraft(request.id)}
+                          disabled={processingId === request.id}
+                          variant="secondary"
+                          className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 border-0 neu-button-raised hover:neu-button-pressed text-left"
+                          size="lg"
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            <div className="text-center">
+                              <div>👁️ Preview Surat (Draft)</div>
+                              <div className="text-xs opacity-80 mt-1">Tanpa mengubah status</div>
+                            </div>
+                          </div>
+                        </Button>
+                        <Button
                           onClick={() => handleDirectLetter(request.id)}
                           disabled={processingId === request.id}
                           variant="default"
@@ -481,12 +525,12 @@ export default function OwnerInbox() {
       </div>
       
       {/* Letter Preview Dialog */}
-      <Dialog open={showLetterPreview} onOpenChange={setShowLetterPreview}>
+      <Dialog open={showLetterPreview} onOpenChange={(o) => { if (!o) { setDraftMode(false); setShowLetterPreview(false);} }}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle>Preview Surat Peminjaman</DialogTitle>
+            <DialogTitle>{draftMode ? 'Draft Surat Internal' : 'Surat Internal Disetujui'}</DialogTitle>
             <DialogDescription>
-              Surat peminjaman telah disetujui dan siap untuk dicetak
+              {draftMode ? 'Pratinjau sebelum persetujuan. Belum sah sampai Anda klik Terima.' : 'Surat peminjaman telah disetujui dan siap untuk dicetak'}
             </DialogDescription>
           </DialogHeader>
           
@@ -498,16 +542,14 @@ export default function OwnerInbox() {
                   style={{ width: '100%', height: '100%' }}
                   showToolbar={false}
                 >
-                  <BorrowLetter 
-                    data={{
-                      request: previewRequest,
-                      ownerName: previewRequest?.owner_reviewer?.full_name || ownerProfile?.full_name || "Pengelola Inventaris",
-                      headmasterName: undefined,
-                      schoolName: "Darul Ma'arif",
-                      schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
-                      letterType: 'internal'
-                    }}
-                  />
+                  <BorrowLetter data={{
+                    request: previewRequest,
+                    ownerName: previewRequest?.owner_reviewer?.full_name || ownerProfile?.full_name || 'Pengelola Inventaris',
+                    headmasterName: undefined,
+                    schoolName: 'Darul Ma\'arif',
+                    schoolAddress: 'Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu',
+                    letterType: 'internal'
+                  }} />
                 </PDFViewer>
               </div>
               
@@ -522,7 +564,8 @@ export default function OwnerInbox() {
                   Tutup Preview
                 </Button>
                 
-                <PDFDownloadLink
+                {!draftMode && (
+                  <PDFDownloadLink
                   document={
                     <BorrowLetter 
                       data={{
@@ -547,6 +590,7 @@ export default function OwnerInbox() {
                     </Button>
                   )}
                 </PDFDownloadLink>
+                )}
               </div>
             </div>
           )}

@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Package, FileText, Inbox, CheckCircle2, Clock, AlertCircle, LogOut, User } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function Dashboard() {
@@ -22,78 +21,134 @@ export default function Dashboard() {
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [userProfile, setUserProfile] = useState<{ full_name?: string; unit?: string } | null>(null);
 
-  useEffect(() => {
-    fetchStats();
-    fetchUserRoles();
-    fetchUserProfile();
-    
-    // Setup auto-refresh every 30 seconds for real-time dashboard
-    const interval = setInterval(() => {
-      fetchStats();
-    }, 30000);
-
-    // Setup real-time subscription for updates
-    const channel = supabase
-      .channel('dashboard-updates')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'borrow_requests' },
-        () => {
-          fetchStats();
-        }
-      )
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'request_items' },
-        () => {
-          fetchStats();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      clearInterval(interval);
-      supabase.removeChannel(channel);
-    };
+  const fetchUserProfile = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("full_name, unit")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (data) setUserProfile(data);
   }, []);
 
-  const fetchUserProfile = async () => {
+  const fetchUserRoles = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-      
-      if (data) {
-        setUserProfile(data);
-      }
-    }
-  };
+    if (!user) return;
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    if (data) setUserRoles(data.map(r => r.role));
+  }, []);
 
-  const fetchUserRoles = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-      
-      if (data) {
-        setUserRoles(data.map((r) => r.role));
-      }
-    }
-  };
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Get all items
+    // Items & borrowed calc
+    const { data: allItems } = await supabase.from("items").select("id, quantity");
+    const { data: activeRequests } = await supabase
+      .from("borrow_requests")
+      .select(`request_items(item_id, quantity)`) // only counts
+      .in("status", ["approved", "active"]);
+
+    const borrowedMap = new Map<string, number>();
+    activeRequests?.forEach(req => {
+      req.request_items?.forEach((ri: { item_id: string; quantity: number }) => {
+        borrowedMap.set(ri.item_id, (borrowedMap.get(ri.item_id) || 0) + ri.quantity);
+      });
+    });
+
+    let totalItems = 0; let availableItems = 0; let borrowedItems = 0; let unavailableItems = 0;
+    allItems?.forEach(it => {
+      const borrowed = borrowedMap.get(it.id) || 0;
+      const available = Math.max(0, it.quantity - borrowed);
+      totalItems++;
+      if (available > 0) availableItems++; else unavailableItems++;
+      if (borrowed > 0) borrowedItems++;
+    });
+
+    // My requests
+    const { count: myRequests } = await supabase
+      .from("borrow_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("borrower_id", user.id);
+
+    // Active loans
+    const { count: activeLoans } = await supabase
+      .from("borrow_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active");
+
+    // Pending approvals filtered
+    let pendingApprovals = 0;
+    if (userRoles.includes('owner')) {
+      // Pull pending_owner and filter by department via join traversal
+      const { data: pendingOwner } = await supabase
+        .from('borrow_requests')
+        .select(`id, request_items(item:items(department:departments(name)))`)
+        .eq('status', 'pending_owner');
+      const { data: ownerRole } = await supabase
+        .from('user_roles')
+        .select('department')
+        .eq('user_id', user.id)
+        .eq('role', 'owner')
+        .maybeSingle();
+      const ownerDeptName = ownerRole?.department;
+      if (ownerDeptName) {
+        interface PendingOwnerItem { item?: { department?: { name?: string } } }
+        interface PendingOwnerReq { request_items?: PendingOwnerItem[] }
+        const filtered = (pendingOwner as PendingOwnerReq[] || []).filter(r =>
+          r.request_items?.some((ri: PendingOwnerItem) => ri.item?.department?.name === ownerDeptName)
+        );
+        pendingApprovals += filtered.length;
+      }
+    }
+    if (userRoles.includes('headmaster')) {
+      const { count: headPending } = await supabase
+        .from('borrow_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending_headmaster');
+      pendingApprovals += headPending || 0;
+    }
+
+    setStats({
+      totalItems,
+      availableItems,
+      borrowedItems,
+      unavailableItems,
+      myRequests: myRequests || 0,
+      pendingApprovals,
+      activeLoans: activeLoans || 0,
+    });
+  }, [userRoles]);
+
+  useEffect(() => {
+    fetchUserRoles();
+  }, [fetchUserRoles]);
+
+  useEffect(() => {
+    // setelah roles siap, ambil stats & profil
+    fetchStats();
+    fetchUserProfile();
+    const interval = setInterval(fetchStats, 30000);
+    const channel = supabase
+      .channel('dashboard-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'borrow_requests' }, () => fetchStats())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'request_items' }, () => fetchStats())
+      .subscribe();
+    return () => { clearInterval(interval); supabase.removeChannel(channel); };
+  }, [fetchStats, fetchUserProfile]);
+
+  const fetchStats = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { data: allItems } = await supabase
       .from("items")
       .select("id, quantity");
 
-    // Get active borrowed items
     const { data: activeRequests } = await supabase
       .from("borrow_requests")
       .select(`
@@ -104,7 +159,6 @@ export default function Dashboard() {
       `)
       .in("status", ["approved", "active"]);
 
-    // Calculate borrowed quantities per item
     const borrowedMap = new Map<string, number>();
     activeRequests?.forEach(request => {
       request.request_items?.forEach((item: { item_id: string; quantity: number }) => {
@@ -113,7 +167,6 @@ export default function Dashboard() {
       });
     });
 
-    // Calculate real-time inventory stats
     let totalItems = 0;
     let availableItems = 0;
     let borrowedItems = 0;
@@ -122,31 +175,48 @@ export default function Dashboard() {
     allItems?.forEach(item => {
       const borrowed = borrowedMap.get(item.id) || 0;
       const available = Math.max(0, item.quantity - borrowed);
-      
       totalItems++;
-      if (available > 0) {
-        availableItems++;
-      } else {
-        unavailableItems++;
-      }
-      if (borrowed > 0) {
-        borrowedItems++;
-      }
+      if (available > 0) availableItems++; else unavailableItems++;
+      if (borrowed > 0) borrowedItems++;
     });
 
-    // My requests
     const { count: requestsCount } = await supabase
       .from("borrow_requests")
       .select("*", { count: "exact", head: true })
       .eq("borrower_id", user.id);
 
-    // Pending approvals (if owner or headmaster)
-    const { count: pendingCount } = await supabase
-      .from("borrow_requests")
-      .select("*", { count: "exact", head: true })
-      .in("status", ["pending_owner", "pending_headmaster"]);
+    // Pending approvals filtered sesuai role & departemen
+    let pendingApprovals = 0;
+    if (userRoles.includes('owner')) {
+      const { data: ownerRole } = await supabase
+        .from('user_roles')
+        .select('department')
+        .eq('user_id', user.id)
+        .eq('role', 'owner')
+        .maybeSingle();
+      const ownerDept = ownerRole?.department;
+      if (ownerDept) {
+        // (Optimisasi ke depan: tambahkan kolom department ke borrow_requests untuk count cepat)
+        const { data: ownerPendRaw } = await supabase
+          .from('borrow_requests')
+          .select('id, request_items(item:items(department:departments(name)))')
+          .eq('status', 'pending_owner');
+        interface PendingOwnerItem2 { item?: { department?: { name?: string } } }
+        interface PendingOwnerReq2 { request_items?: PendingOwnerItem2[] }
+        const ownerFiltered = (ownerPendRaw as PendingOwnerReq2[] || []).filter(r =>
+          r.request_items?.some((ri: PendingOwnerItem2) => ri.item?.department?.name === ownerDept)
+        );
+        pendingApprovals += ownerFiltered.length;
+      }
+    }
+    if (userRoles.includes('headmaster')) {
+      const { count: headPending } = await supabase
+        .from('borrow_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending_headmaster');
+      pendingApprovals += headPending || 0;
+    }
 
-    // Active loans
     const { count: activeCount } = await supabase
       .from("borrow_requests")
       .select("*", { count: "exact", head: true })
@@ -158,53 +228,10 @@ export default function Dashboard() {
       borrowedItems,
       unavailableItems,
       myRequests: requestsCount || 0,
-      pendingApprovals: pendingCount || 0,
+      pendingApprovals,
       activeLoans: activeCount || 0,
     });
-  };
-
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error("Gagal logout");
-    } else {
-      toast.success("Berhasil logout");
-      navigate("/auth");
-    }
-  };
-
-  const quickActions = [
-    {
-      title: "Ajukan Peminjaman",
-      description: "Cari dan ajukan peminjaman alat",
-      icon: FileText,
-      link: "/inventory",
-      color: "text-primary",
-    },
-    {
-      title: "Lihat Pengajuan",
-      description: "Pantau status pengajuan Anda",
-      icon: Clock,
-      link: "/my-requests",
-      color: "text-warning",
-    },
-    ...(userRoles.includes("owner") || userRoles.includes("headmaster")
-      ? [{
-          title: "Kotak Masuk",
-          description: "Review pengajuan peminjaman",
-          icon: Inbox,
-          link: userRoles.includes("headmaster") ? "/headmaster-inbox" : "/owner-inbox",
-          color: "text-accent",
-        }]
-      : []),
-    {
-      title: "Pinjaman Aktif",
-      description: "Kelola peminjaman aktif",
-      icon: CheckCircle2,
-      link: "/realtime-data",
-      color: "text-success",
-    },
-  ];
+  }, [userRoles]);
 
   return (
     <div className="min-h-screen bg-background pb-16">
@@ -220,14 +247,8 @@ export default function Dashboard() {
               <p className="text-xs text-muted-foreground">{userProfile.unit}</p>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLogout}
-            className="neu-flat"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
+          <Button variant="outline" size="sm" onClick={handleLogout} className="neu-flat">
+            <LogOut className="h-4 w-4 mr-2" /> Logout
           </Button>
         </div>
 
@@ -368,7 +389,7 @@ export default function Dashboard() {
         <div>
           <h2 className="text-lg font-semibold mb-4">Aksi Cepat</h2>
           <div className="grid grid-cols-1 gap-3">
-            {quickActions.map((action) => (
+            {quickActions.map(action => (
               <Link key={action.title} to={action.link}>
                 <Card className="neu-flat hover:neu-raised transition-all">
                   <CardContent className="py-4">
@@ -378,9 +399,7 @@ export default function Dashboard() {
                       </div>
                       <div className="flex-1">
                         <CardTitle className="text-base">{action.title}</CardTitle>
-                        <CardDescription className="text-sm">
-                          {action.description}
-                        </CardDescription>
+                        <CardDescription className="text-sm">{action.description}</CardDescription>
                       </div>
                     </div>
                   </CardContent>

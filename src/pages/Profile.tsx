@@ -59,11 +59,42 @@ export default function Profile() {
         }
 
         // Fetch stats
-        const [requestsCount, activeCount, completedCount, pendingCount] = await Promise.all([
+        // Hitung jumlah yang perlu direview khusus sesuai role & departemen (join manual)
+        let pendingApprovalsCount = 0;
+        if (rolesResult.data?.some(r => r.role === 'owner')) {
+          const ownerDeptName = rolesResult.data.find(r => r.role === 'owner')?.department;
+          if (ownerDeptName) {
+            interface OwnerPendingItem { item?: { department?: { name?: string } } }
+            interface OwnerPendingRequest { request_items?: OwnerPendingItem[] }
+            const { data: ownerPendingData } = await supabase
+              .from('borrow_requests')
+              .select(`
+                id,
+                request_items(
+                  item:items(
+                    department:departments(name)
+                  )
+                )
+              `)
+              .eq('status', 'pending_owner');
+            const ownerFiltered = (ownerPendingData as OwnerPendingRequest[] | null)?.filter(req =>
+              req.request_items?.some((ri: OwnerPendingItem) => ri.item?.department?.name === ownerDeptName)
+            ) || [];
+            pendingApprovalsCount += ownerFiltered.length;
+          }
+        }
+        if (rolesResult.data?.some(r => r.role === 'headmaster')) {
+          const { count: headPending } = await supabase
+            .from('borrow_requests')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'pending_headmaster');
+          pendingApprovalsCount += headPending || 0;
+        }
+
+        const [requestsCount, activeCount, completedCount] = await Promise.all([
           supabase.from("borrow_requests").select("*", { count: "exact", head: true }).eq("borrower_id", user.id),
           supabase.from("borrow_requests").select("*", { count: "exact", head: true }).eq("borrower_id", user.id).eq("status", "active"),
-          supabase.from("borrow_requests").select("*", { count: "exact", head: true }).eq("borrower_id", user.id).eq("status", "completed"),
-          supabase.from("borrow_requests").select("*", { count: "exact", head: true }).in("status", ["pending_owner", "pending_headmaster"])
+          supabase.from("borrow_requests").select("*", { count: "exact", head: true }).eq("borrower_id", user.id).eq("status", "completed")
         ]);
 
         if (isMounted) {
@@ -71,7 +102,7 @@ export default function Profile() {
             totalRequests: requestsCount.count || 0,
             activeLoans: activeCount.count || 0,
             completedLoans: completedCount.count || 0,
-            pendingApprovals: pendingCount.count || 0,
+            pendingApprovals: pendingApprovalsCount,
           });
         }
       } catch (error) {
