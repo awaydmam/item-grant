@@ -1,4 +1,4 @@
-/* Neumorphism Design System */
+/* Neumorphism Design System - Light Mode Only */
 .neu-raised {
   background: #F3F4F6;
   border-radius: 16px;
@@ -14,22 +14,54 @@
 }
 
 .neu-flat {
-  background: linear-gradient(145deg, #ffffff, #e6e6e6);
-  border-radius: 8px;
-  box-shadow: 5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff;
+  border-radius: 12px;
+  box-shadow: 6px 6px 12px #d1d9e6, -6px -6px 12px #ffffff;
   border: none;
   transition: all 0.2s ease;
 }
 
 .neu-flat:hover {
-  box-shadow: 7px 7px 14px #d1d9e6, -7px -7px 14px #ffffff;
+  box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff;
   transform: translateY(-1px);
 }
 
 .neu-pressed {
-  background: #e6e6e6;
   border-radius: 8px;
   box-shadow: inset 3px 3px 6px #d1d9e6, inset -3px -3px 6px #ffffff;
+  border: none;
+}
+
+/* Button specific neumorphism - preserves button colors */
+.neu-button-raised {
+  border-radius: 12px;
+  box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.1), -6px -6px 12px rgba(255, 255, 255, 0.8);
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.neu-button-raised:hover {
+  box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.15), -8px -8px 16px rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+}
+
+.neu-button-pressed {
+  border-radius: 8px;
+  box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.1), inset -3px -3px 6px rgba(255, 255, 255, 0.5);
+  border: none;
+}
+
+/* Card specific neumorphism - keeps background */
+.neu-card {
+  background: #F3F4F6;
+  border-radius: 16px;
+  box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff;
+  border: none;
+}
+
+/* Icon container - subtle effect without background override */
+.neu-icon {
+  border-radius: 8px;
+  box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.08), -3px -3px 6px rgba(255, 255, 255, 0.6);
   border: none;
 }
 
@@ -46,7 +78,7 @@
   box-shadow: inset 3px 3px 6px #d1d9e6, inset -3px -3px 6px #ffffff, 0 0 0 2px #2563EB;
 }
 
-/* Mobile Container */
+/* Mobile Container with better spacing */
 .container-mobile {
   max-width: 100%;
   margin: 0 auto;
@@ -56,7 +88,21 @@
 @media (min-width: 640px) {
   .container-mobile {
     max-width: 640px;
+    padding: 0 24px;
   }
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Loading animation */
+.border-3 {
+  border-width: 3px;
 }
 
 /* Sticky Bottom Bar */
@@ -168,31 +214,126 @@
   color: #2563EB;
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .neu-raised {
-    background: #1f2937;
-    box-shadow: 8px 8px 16px #111827, -8px -8px 16px #374151;
+/* Safe Area Support for Mobile */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Enhanced Mobile Utilities */
+.mobile-breathing-room {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 640px) {
+  .mobile-breathing-room {
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
   }
-  
-  .neu-sunken {
-    background: #1f2937;
-    box-shadow: inset 5px 5px 10px #111827, inset -5px -5px 10px #374151;
+}
+
+/* Sticky Bottom Bar Enhancement */
+.sticky-bottom-bar {
+  position: fixed;
+  bottom: 80px;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid #e5e7eb;
+  padding: 16px;
+  z-index: 50;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 640px) {
+  .sticky-bottom-bar {
+    bottom: 70px;
+    padding: 12px 16px;
   }
-  
-  .neu-flat {
-    background: linear-gradient(145deg, #374151, #1f2937);
-    box-shadow: 5px 5px 10px #111827, -5px -5px 10px #374151;
+}
+
+/* Inventory Card Layout Fix */
+.inventory-card {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 1rem;
+  clear: both;
+}
+
+.inventory-card-content {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.inventory-image {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+}
+
+@media (min-width: 640px) {
+  .inventory-image {
+    width: 96px;
+    height: 96px;
   }
-  
-  .neu-pressed {
-    background: #1f2937;
-    box-shadow: inset 3px 3px 6px #111827, inset -3px -3px 6px #374151;
-  }
-  
-  .neu-input {
-    background: #1f2937;
-    box-shadow: inset 5px 5px 10px #111827, inset -5px -5px 10px #374151;
-    color: #f9fafb;
-  }
+}
+
+.inventory-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+/* Fix for overlapping elements */
+.prevent-overlap {
+  isolation: isolate;
+  contain: layout;
+}
+
+/* Cart Item Card Layout Fix */
+.cart-item-card {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 1rem;
+  clear: both;
+  isolation: isolate;
+  contain: layout;
+}
+
+.cart-item-card .card-content {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.cart-image {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+}
+
+.cart-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Prevent layout shift and overlap */
+.cart-layout-stable {
+  overflow: hidden;
+  word-wrap: break-word;
+  hyphens: auto;
 }

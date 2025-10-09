@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +13,8 @@ interface Department {
   name: string;
   description: string;
   item_count?: number;
+  available_count?: number;
+  borrowed_count?: number;
 }
 
 export default function Departments() {
@@ -22,43 +24,61 @@ export default function Departments() {
   const [loading, setLoading] = useState(true);
   const { getTotalItems } = useCart();
 
-  useEffect(() => {
-    fetchUserProfile();
-    fetchDepartments();
-  }, [userDepartment]);
-
-  const fetchUserProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("unit")
-        .eq("id", user.id)
-        .single();
-      
-      if (profile) {
-        setUserDepartment(profile.unit);
-      }
-    }
-  };
-
-  const fetchDepartments = async () => {
+  const fetchDepartments = useCallback(async () => {
     try {
-      // Get departments with item counts
-      const { data } = await supabase
+      // Get departments
+      const { data: deptData } = await supabase
         .from("departments")
-        .select(`
-          id,
-          name,
-          description,
-          items!items_department_id_fkey(id)
-        `);
+        .select("id, name, description");
 
-      if (data) {
-        const departmentsWithCounts = data.map(dept => ({
-          ...dept,
-          item_count: dept.items?.length || 0
-        }));
+      // Get all items for each department  
+      const { data: itemsData } = await supabase
+        .from("items")
+        .select("id, department_id, quantity");
+
+      // Get active borrowed items
+      const { data: activeRequests } = await supabase
+        .from("borrow_requests")
+        .select(`
+          request_items (
+            item_id,
+            quantity
+          )
+        `)
+        .in("status", ["approved", "active"]);
+
+      // Calculate borrowed quantities per item
+      const borrowedMap = new Map<string, number>();
+      activeRequests?.forEach(request => {
+        request.request_items?.forEach((item: { item_id: string; quantity: number }) => {
+          const current = borrowedMap.get(item.item_id) || 0;
+          borrowedMap.set(item.item_id, current + item.quantity);
+        });
+      });
+
+      if (deptData && itemsData) {
+        const departmentsWithCounts = deptData.map(dept => {
+          const deptItems = itemsData.filter(item => item.department_id === dept.id);
+          const totalCount = deptItems.length;
+          
+          let availableCount = 0;
+          let borrowedCount = 0;
+          
+          deptItems.forEach(item => {
+            const borrowed = borrowedMap.get(item.id) || 0;
+            const available = Math.max(0, item.quantity - borrowed);
+            
+            if (available > 0) availableCount++;
+            if (borrowed > 0) borrowedCount++;
+          });
+
+          return {
+            ...dept,
+            item_count: totalCount,
+            available_count: availableCount,
+            borrowed_count: borrowedCount
+          };
+        });
         
         // Sort: user's department first, then alphabetically
         const sorted = departmentsWithCounts.sort((a, b) => {
@@ -76,6 +96,31 @@ export default function Departments() {
     } finally {
       setLoading(false);
     }
+  }, [userDepartment]);
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  useEffect(() => {
+    if (userDepartment !== null) {
+      fetchDepartments();
+    }
+  }, [userDepartment, fetchDepartments]);
+
+  const fetchUserProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("unit")
+        .eq("id", user.id)
+        .single();
+      
+      if (profile) {
+        setUserDepartment(profile.unit);
+      }
+    }
   };
 
   const handleDepartmentClick = (departmentId: string, departmentName: string) => {
@@ -84,10 +129,13 @@ export default function Departments() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-16">
-        <div className="container-mobile pt-6">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <p className="text-muted-foreground">Memuat departemen...</p>
+      <div className="min-h-screen bg-background pb-20">
+        <div className="container-mobile pt-8 px-6">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center space-y-3">
+              <div className="animate-spin w-8 h-8 border-3 border-primary border-t-transparent rounded-full mx-auto"></div>
+              <p className="text-muted-foreground">Memuat departemen...</p>
+            </div>
           </div>
         </div>
         <BottomNav />
@@ -96,17 +144,17 @@ export default function Departments() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-16">
-      {/* Header */}
+    <div className="min-h-screen bg-background pb-20">
+      {/* Header with better spacing */}
       <div className="bg-gradient-to-b from-primary/5 to-background">
-        <div className="container-mobile pt-6 pb-4">
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-bold">Pilih Departemen</h1>
-            <p className="text-muted-foreground">
+        <div className="container-mobile pt-8 pb-6 px-6">
+          <div className="text-center space-y-3">
+            <h1 className="text-2xl font-bold text-gray-800 pt-10  ">Pilih Departemen</h1>
+            <p className="text-muted-foreground text-sm leading-relaxed">
               Pilih departemen untuk melihat alat yang tersedia
             </p>
             {userDepartment && (
-              <Badge variant="default" className="mt-2">
+              <Badge variant="default" className="mt-3 px-3 py-1 rounded-full">
                 Department Anda: {userDepartment}
               </Badge>
             )}
@@ -114,55 +162,86 @@ export default function Departments() {
         </div>
       </div>
 
-      <div className="container-mobile py-4">
+      <div className="container-mobile py-6 px-5">
         {departments.length === 0 ? (
-          <Card className="neu-flat">
-            <CardContent className="py-12 text-center">
+          <Card className="neu-flat mx-2">
+            <CardContent className="py-16 text-center">
               <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">Belum ada departemen tersedia</p>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {departments.map((dept) => (
               <Card 
                 key={dept.id} 
-                className={`neu-flat hover:neu-raised transition-all cursor-pointer ${
-                  dept.name === userDepartment ? 'ring-2 ring-primary bg-primary/5' : ''
+                className={`neu-flat hover:neu-raised transition-all duration-200 cursor-pointer mx-1 ${
+                  dept.name === userDepartment ? 'ring-2 ring-primary/40 bg-primary/8' : ''
                 }`}
                 onClick={() => handleDepartmentClick(dept.id, dept.name)}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="neu-raised p-3 rounded-xl">
-                        <Building2 className="h-6 w-6 text-primary" />
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    {/* Left Content */}
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      <div className="neu-raised p-3 rounded-2xl flex-shrink-0">
+                        <Building2 className="h-5 w-5 text-primary" />
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-base">{dept.name}</h3>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-lg text-gray-800 mb-1 truncate">
+                          {dept.name}
+                        </h3>
                         {dept.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                             {dept.description}
                           </p>
                         )}
-                        <div className="flex items-center gap-2 mt-2">
-                          <Package className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            {dept.item_count} alat tersedia
-                          </span>
+                        
+                        {/* Stats dengan design yang lebih clean */}
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              {dept.item_count || 0} total alat
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 bg-success rounded-full"></div>
+                              <span className="text-sm font-medium text-success">
+                                {dept.available_count || 0} tersedia
+                              </span>
+                            </div>
+                            {dept.borrowed_count && dept.borrowed_count > 0 && (
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-2 h-2 bg-warning rounded-full"></div>
+                                <span className="text-sm font-medium text-warning">
+                                  {dept.borrowed_count} dipinjam
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    
+                    {/* Right Content - Badges and Arrow */}
+                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
                       {dept.name === userDepartment && (
-                        <Badge variant="default" className="text-xs">
-                          Department Anda
+                        <Badge variant="default" className="text-xs px-2 py-1 rounded-full">
+                          Anda
                         </Badge>
                       )}
-                      {dept.item_count && dept.item_count > 0 && (
-                        <Badge variant="secondary">{dept.item_count}</Badge>
+                      {dept.available_count !== undefined && dept.available_count > 0 ? (
+                        <Badge className="bg-success/90 hover:bg-success text-white text-xs px-2 py-1 rounded-full">
+                          {dept.available_count}
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive" className="text-xs px-2 py-1 rounded-full">
+                          Habis
+                        </Badge>
                       )}
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground mt-1" />
                     </div>
                   </div>
                 </CardContent>
@@ -172,16 +251,16 @@ export default function Departments() {
         )}
       </div>
 
-      {/* Floating Cart Button */}
+      {/* Floating Cart Button with better positioning */}
       {getTotalItems() > 0 && (
-        <div className="fixed bottom-20 right-4 z-50">
+        <div className="fixed bottom-24 right-6 z-50">
           <Button
             onClick={() => navigate('/cart')}
-            className="h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-white"
+            className="h-12 w-12 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-white neu-raised transition-all duration-200 hover:scale-105"
           >
             <div className="relative">
-              <ShoppingCart className="h-6 w-6" />
-              <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-red-500 text-white">
+              <ShoppingCart className="h-5 w-5" />
+              <Badge className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full p-0 flex items-center justify-center text-xs bg-red-500 text-white border-2 border-white">
                 {getTotalItems()}
               </Badge>
             </div>

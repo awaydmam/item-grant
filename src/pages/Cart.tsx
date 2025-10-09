@@ -38,57 +38,63 @@ export default function Cart() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-16">
-      {/* Header */}
-      <div className="bg-gradient-to-b from-primary/5 to-background">
-        <div className="container-mobile pt-6 pb-4">
-          <div className="text-center space-y-4">
-            <h1 className="text-2xl font-bold flex items-center justify-center gap-2">
-              <ShoppingCart className="h-6 w-6" />
-              Keranjang ({getTotalItems()})
-            </h1>
-            <p className="text-muted-foreground">
-              Review alat yang akan dipinjam
-            </p>
+    <div className="min-h-screen bg-background pb-20">
+      {/* Header dengan Safe Area Support */}
+      <div className="bg-gradient-to-b from-primary/5 to-background safe-area-top">
+        <div className="container-mobile pt-8 pb-6">
+          <div className="text-center space-y-6 mt-2">
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold flex items-center justify-center pt-10       gap-3">
+                <div className="neu-raised             p-2 rounded-xl bg-blue-100">
+                  <ShoppingCart className="h-6 w-6 text-blue-600" />
+                </div>
+                Keranjang ({getTotalItems()})
+              </h1>
+              <p className="text-muted-foreground text-base">
+                Review alat yang akan dipinjam
+              </p>
+            </div>
             
-            {/* Progress Steps */}
-            <div className="flex items-center justify-center gap-4 mt-4">
+            {/* Progress Steps dengan warna yang diperbaiki */}
+            <div className="flex items-center justify-center gap-3 sm:gap-4 mt-6">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold neu-raised shadow-lg">
                   1
                 </div>
-                <span className="text-sm font-medium text-primary">Pilih Alat</span>
+                <span className="text-xs sm:text-sm font-medium text-blue-600">Pilih Alat</span>
               </div>
-              <div className="w-8 h-0.5 bg-primary"></div>
+              <div className="w-6 sm:w-8 h-0.5 bg-blue-600 rounded-full neu-flat"></div>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold neu-raised shadow-lg border-2 border-blue-700">
                   2
                 </div>
-                <span className="text-sm font-medium text-primary">Review Keranjang</span>
+                <span className="text-xs sm:text-sm font-semibold text-blue-700">Review Keranjang</span>
               </div>
-              <div className="w-8 h-0.5 bg-muted"></div>
+              <div className="w-6 sm:w-8 h-0.5 bg-gray-300 rounded-full"></div>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-bold">
+                <div className="w-8 h-8 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-sm font-bold neu-sunken">
                   3
                 </div>
-                <span className="text-sm text-muted-foreground">Form Peminjaman</span>
+                <span className="text-xs sm:text-sm text-gray-600">Form Peminjaman</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container-mobile py-4">
+      <div className="container-mobile py-6">
         {cartItems.length === 0 ? (
           <div className="space-y-6">
-            <Card className="neu-flat">
-              <CardContent className="py-12 text-center">
-                <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="font-semibold mb-2">Keranjang Kosong</h3>
-                <p className="text-muted-foreground mb-4">
+            <Card className="neu-flat overflow-hidden">
+              <CardContent className="py-16 text-center">
+                <div className="neu-sunken w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <ShoppingCart className="h-10 w-10 text-muted-foreground opacity-50" />
+                </div>
+                <h3 className="font-semibold text-lg mb-3">Keranjang Kosong</h3>
+                <p className="text-muted-foreground mb-6 leading-relaxed">
                   Belum ada alat yang dipilih untuk dipinjam
                 </p>
-                <Button onClick={handleContinueShopping} className="neu-flat">
+                <Button onClick={handleContinueShopping} className="rounded-md px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed">
                   <Package className="h-4 w-4 mr-2" />
                   Pilih Alat
                 </Button>
@@ -97,14 +103,14 @@ export default function Cart() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Cart Items */}
-            <div className="space-y-3">
+            {/* Cart Items dengan spacing yang diperbaiki */}
+            <div className="space-y-4">
               {cartItems.map((item) => (
-                <Card key={item.id} className="neu-flat">
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      {/* Item Image */}
-                      <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center neu-sunken overflow-hidden">
+                <Card key={item.id} className="neu-flat overflow-hidden cart-item-card cart-layout-stable">
+                  <CardContent className="p-5">
+                    <div className="card-content">
+                      {/* Item Image dengan enhancement */}
+                      <div className="cart-image flex-shrink-0 rounded-xl bg-muted flex items-center justify-center neu-sunken overflow-hidden">
                         {item.image_url ? (
                           <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                         ) : (
@@ -112,40 +118,40 @@ export default function Cart() {
                         )}
                       </div>
 
-                      {/* Item Info */}
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className="font-semibold text-base leading-tight">{item.name}</h4>
+                      {/* Item Info dengan layout yang diperbaiki */}
+                      <div className="cart-info">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-base leading-tight text-gray-900 line-clamp-2">{item.name}</h4>
                             {item.category && (
-                              <p className="text-xs text-muted-foreground">{item.category}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{item.category}</p>
                             )}
-                            <p className="text-sm text-muted-foreground">
-                              Tersedia: {item.available_quantity}
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Tersedia: <span className="font-medium">{item.available_quantity}</span>
                             </p>
                           </div>
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => removeItem(item.id)}
-                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            className="h-9 w-9 text-destructive hover:text-white hover:bg-red-500 flex-shrink-0 neu-button-raised hover:neu-button-pressed border-0"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
 
-                        {/* Quantity Controls */}
-                        <div className="flex items-center gap-3">
+                        {/* Quantity Controls dengan spacing yang diperbaiki */}
+                        <div className="flex items-center gap-4">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                            className="neu-pressed w-8 h-8 p-0"
+                            className="w-9 h-9 p-0 flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed"
                           >
                             <Minus className="h-4 w-4" />
                           </Button>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-lg w-8 text-center">
+                          <div className="flex items-center gap-2 px-2">
+                            <span className="font-semibold text-lg min-w-[2rem] text-center">
                               {item.quantity}
                             </span>
                             <span className="text-sm text-muted-foreground">unit</span>
@@ -155,7 +161,7 @@ export default function Cart() {
                             variant="outline"
                             onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
                             disabled={item.quantity >= item.available_quantity}
-                            className="neu-flat w-8 h-8 p-0"
+                            className="w-9 h-9 p-0 flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed disabled:bg-gray-400 disabled:hover:bg-gray-400"
                           >
                             <Plus className="h-4 w-4" />
                           </Button>
@@ -167,39 +173,39 @@ export default function Cart() {
               ))}
             </div>
 
-            {/* Summary */}
-            <Card className="neu-raised border-primary/20">
-              <CardContent className="p-4">
-                <div className="space-y-3">
+            {/* Summary dengan enhancement */}
+            <Card className="neu-raised border-primary/20 overflow-hidden">
+              <CardContent className="p-5">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold">Total Item:</span>
-                    <Badge variant="default" className="text-base px-3 py-1">
+                    <span className="font-semibold text-lg text-gray-900">Total Item:</span>
+                    <Badge variant="default" className="text-base px-4 py-2 neu-raised">
                       {getTotalItems()} unit
                     </Badge>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {cartItems.length} jenis alat dipilih
+                  <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
+                    <span className="font-medium">{cartItems.length}</span> jenis alat dipilih untuk peminjaman
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Action Buttons */}
-            <div className="space-y-3">
+            {/* Action Buttons dengan spacing yang diperbaiki */}
+            <div className="space-y-4 pb-4">
               <Button 
                 size="lg" 
-                className="w-full neu-flat" 
+                className="w-full h-12 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed" 
                 onClick={handleCheckout}
               >
-                <ArrowRight className="h-5 w-5 mr-2" />
+                <ArrowRight className="h-5 w-5 mr-3" />
                 Lanjutkan ke Pengajuan
               </Button>
               
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <Button 
                   variant="outline" 
                   onClick={handleContinueShopping}
-                  className="neu-flat"
+                  className="h-11 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 neu-button-raised hover:neu-button-pressed border-0"
                 >
                   <Package className="h-4 w-4 mr-2" />
                   Tambah Alat
@@ -207,7 +213,7 @@ export default function Cart() {
                 <Button 
                   variant="destructive" 
                   onClick={clearCart}
-                  className="neu-flat"
+                  className="h-11 bg-red-500 hover:bg-red-600 text-white border-0 neu-button-raised hover:neu-button-pressed"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Kosongkan

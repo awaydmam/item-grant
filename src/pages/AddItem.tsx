@@ -99,20 +99,11 @@ export default function AddItem() {
   const [addingCategory, setAddingCategory] = useState(false);
   const [originalItemData, setOriginalItemData] = useState<FormData | null>(null);
 
-  // Fungsi untuk mencatat aktivitas perubahan item
+  // Fungsi untuk mencatat aktivitas perubahan item (disabled sementara)
   const logItemActivity = async (itemId: string, actionType: string, oldValues: Record<string, unknown>, newValues: Record<string, unknown>, notes?: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      await supabase.from('item_activity_logs').insert({
-        item_id: itemId,
-        user_id: user.id,
-        action_type: actionType,
-        old_values: oldValues,
-        new_values: newValues,
-        notes: notes
-      });
+      // TODO: Implement activity logging when table is created
+      console.log('Activity log:', { itemId, actionType, oldValues, newValues, notes });
     } catch (error) {
       console.error('Error logging activity:', error);
     }
@@ -380,9 +371,9 @@ export default function AddItem() {
 
   if (roleLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-24 safe-area-pb flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+          <div className="w-16 h-16 neu-raised bg-blue-700 rounded-2xl flex items-center justify-center mx-auto">
             <Package className="h-8 w-8 text-blue-600 animate-pulse" />
           </div>
           <div className="space-y-2">
@@ -397,74 +388,78 @@ export default function AddItem() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Mobile-First Header */}
-      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between p-4 max-w-lg mx-auto lg:max-w-4xl">
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate("/manage-inventory")}
-              className="rounded-full p-2 hover:bg-gray-100"
-            >
-              <ArrowLeft className="h-5 w-5 text-gray-700" />
-            </Button>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900 lg:text-xl">
-                {isEditMode ? "Edit Barang" : "Tambah Barang"}
-              </h1>
-              <p className="text-xs text-gray-600 lg:text-sm">
-                {isEditMode ? "Perbarui barang" : "Barang baru"}
-              </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-32 safe-area-pb">
+      {/* Enhanced Mobile Header */}
+      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+        <div className="px-4 py-4 safe-area-pt">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => navigate("/manage-inventory")}
+                className="neu-button-raised rounded-xl hover:neu-button-pressed transition-all bg-gray-100 text-gray-700 hover:bg-gray-200 w-10 h-10"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">
+                  {isEditMode ? "Edit Barang" : "Tambah Barang"}
+                </h1>
+                <p className="text-xs text-gray-600">
+                  {isEditMode ? "Perbarui informasi barang" : "Tambah barang ke inventaris"}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 rounded-xl flex items-center justify-center">
-            <Package className="h-5 w-5 text-blue-600" />
+            <div className="neu-icon p-2 rounded-xl bg-blue-100">
+              <Package className="h-5 w-5 text-blue-600" />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Form Container */}
-      <div className="p-4 max-w-lg mx-auto lg:max-w-2xl pb-24">
+      {/* Improved Form Container */}
+      <div className="px-4 py-5 space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Basic Information Card */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Package className="h-4 w-4 text-blue-600" />
+          {/* Basic Information Card - More compact */}
+          <Card className="neu-raised border-0">
+            <CardHeader className="pb-3 px-4 pt-4">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <div className="neu-icon p-1 rounded-lg bg-blue-100">
+                  <Package className="h-4 w-4 text-blue-600" />
+                </div>
                 Informasi Dasar
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 px-4 pb-4">
               <div>
-                <Label htmlFor="name" className="text-sm font-medium text-gray-700">Nama Barang *</Label>
+                <Label htmlFor="name" className="text-sm font-medium text-gray-700 mb-2 block">Nama Barang *</Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
                   placeholder="Masukkan nama barang"
-                  className={`mt-1 ${errors.name ? "border-red-500" : ""}`}
+                  className={`neu-sunken border-0 bg-white/50 h-11 ${errors.name ? "ring-2 ring-red-500" : ""}`}
                 />
                 {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
               </div>
               
               <div>
-                <Label htmlFor="code" className="text-sm font-medium text-gray-700">Kode Barang *</Label>
-                <div className="flex gap-2 mt-1">
+                <Label htmlFor="code" className="text-sm font-medium text-gray-700 mb-2 block">Kode Barang *</Label>
+                <div className="flex gap-2">
                   <Input
                     id="code"
                     value={formData.code}
                     onChange={(e) => handleInputChange("code", e.target.value)}
                     placeholder="Kode unik barang"
-                    className={errors.code ? "border-red-500" : ""}
+                    className={`neu-sunken border-0 bg-white/50 h-11 ${errors.code ? "ring-2 ring-red-500" : ""}`}
                   />
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => handleInputChange("code", generateCode())}
-                    className="px-3 shrink-0"
+                    className="neu-button-raised hover:neu-button-pressed px-3 h-11 shrink-0 bg-blue-600 text-white hover:bg-blue-700 border-0"
                   >
                     <RefreshCw className="h-4 w-4" />
                   </Button>
@@ -473,34 +468,39 @@ export default function AddItem() {
               </div>
 
               <div>
-                <Label htmlFor="description" className="text-sm font-medium text-gray-700">Deskripsi</Label>
+                <Label htmlFor="description" className="text-sm font-medium text-gray-700 mb-2 block">Deskripsi</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => handleInputChange("description", e.target.value)}
                   placeholder="Deskripsi detail barang (opsional)"
-                  rows={3}
-                  className="mt-1"
+                  rows={2}
+                  className="neu-sunken border-0 bg-white/50 resize-none"
                 />
               </div>
             </CardContent>
           </Card>
 
-          {/* Classification Card */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Klasifikasi</CardTitle>
+          {/* Classification Card - More compact */}
+          <Card className="neu-raised border-0">
+            <CardHeader className="pb-3 px-4 pt-4">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <div className="neu-icon p-1 rounded-lg bg-purple-100">
+                  <Folder className="h-4 w-4 text-purple-600" />
+                </div>
+                Klasifikasi
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 px-4 pb-4">
               <div>
-                <Label htmlFor="category" className="text-sm font-medium text-gray-700">Kategori *</Label>
-                <div className="flex gap-2 mt-1">
+                <Label htmlFor="category" className="text-sm font-medium text-gray-700 mb-2 block">Kategori *</Label>
+                <div className="flex gap-2">
                   <div className="flex-1">
                     <Select
                       value={formData.category_id}
                       onValueChange={(value) => handleInputChange("category_id", value)}
                     >
-                      <SelectTrigger className={errors.category_id ? "border-red-500" : ""}>
+                      <SelectTrigger className={`neu-sunken border-0 bg-white/50 h-11 ${errors.category_id ? "ring-2 ring-red-500" : ""}`}>
                         <SelectValue placeholder="Pilih kategori" />
                       </SelectTrigger>
                       <SelectContent>
@@ -513,50 +513,54 @@ export default function AddItem() {
                     </Select>
                   </div>
                   
-                  {/* Tombol Tambah Kategori - Hanya muncul untuk Owner dan Admin */}
+                  {/* Tombol Tambah Kategori - Compact */}
                   {(isOwner || isAdmin) && (
                     <Dialog open={isAddCategoryOpen} onOpenChange={setIsAddCategoryOpen}>
                       <DialogTrigger asChild>
                         <Button 
-                          variant="outline" 
-                          className="px-3 h-10 shrink-0"
+                          variant="ghost" 
+                          className="neu-button-raised hover:neu-button-pressed px-3 h-11 shrink-0 bg-blue-600 text-white hover:bg-blue-700 border-0"
                         >
-                          <Plus className="h-4 w-4 mr-1" />
-                          <span className="hidden sm:inline">Kategori</span>
+                          <Plus className="h-4 w-4" />
                         </Button>
                       </DialogTrigger>
-                      <DialogContent>
+                      <DialogContent className="neu-raised border-0 mx-4 max-w-md">
                         <DialogHeader>
-                          <DialogTitle className="flex items-center gap-2">
-                            <Folder className="h-5 w-5 text-blue-600" />
+                          <DialogTitle className="flex items-center gap-2 text-lg">
+                            <div className="neu-icon p-1 rounded-lg bg-blue-100">
+                              <Folder className="h-4 w-4 text-blue-600" />
+                            </div>
                             Tambah Kategori Baru
                           </DialogTitle>
-                          <DialogDescription>
+                          <DialogDescription className="text-sm">
                             Tambahkan kategori baru untuk mengelompokkan barang inventaris.
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                           <div className="space-y-2">
-                            <Label htmlFor="newCategory">Nama Kategori</Label>
+                            <Label htmlFor="newCategory" className="text-sm font-medium">Nama Kategori</Label>
                             <Input
                               id="newCategory"
                               placeholder="Masukkan nama kategori"
                               value={newCategory}
                               onChange={(e) => setNewCategory(e.target.value)}
+                              className="neu-sunken border-0 bg-white/50 h-11"
                             />
                           </div>
                         </div>
-                        <DialogFooter>
+                        <DialogFooter className="flex gap-2">
                           <Button
                             variant="outline"
                             onClick={() => setIsAddCategoryOpen(false)}
                             disabled={addingCategory}
+                            className="neu-button-raised hover:neu-button-pressed bg-gray-100 text-gray-700 hover:bg-gray-200 border-0 flex-1"
                           >
                             Batal
                           </Button>
                           <Button
                             onClick={handleAddCategory}
                             disabled={addingCategory}
+                            className="bg-blue-600 hover:bg-blue-700 text-white neu-button-raised hover:neu-button-pressed border-0 flex-1"
                           >
                             {addingCategory ? (
                               <>
@@ -566,7 +570,7 @@ export default function AddItem() {
                             ) : (
                               <>
                                 <Plus className="h-4 w-4 mr-2" />
-                                Tambah Kategori
+                                Tambah
                               </>
                             )}
                           </Button>
@@ -579,13 +583,18 @@ export default function AddItem() {
               </div>
 
               <div>
-                <Label htmlFor="department" className="text-sm font-medium text-gray-700">Departemen *</Label>
+                <Label htmlFor="department" className="text-sm font-medium text-gray-700 mb-2 block">
+                  Departemen *
+                  {isOwner && !isAdmin && (
+                    <span className="ml-2 text-xs text-blue-600">(Otomatis)</span>
+                  )}
+                </Label>
                 <Select
                   value={formData.department_id}
                   onValueChange={(value) => handleInputChange("department_id", value)}
                   disabled={isOwner && !isAdmin}
                 >
-                  <SelectTrigger className={`mt-1 ${errors.department_id ? "border-red-500" : ""}`}>
+                  <SelectTrigger className={`neu-sunken border-0 bg-white/50 h-11 ${errors.department_id ? "ring-2 ring-red-500" : ""} ${isOwner && !isAdmin ? "opacity-75" : ""}`}>
                     <SelectValue placeholder="Pilih departemen" />
                   </SelectTrigger>
                   <SelectContent>
@@ -604,19 +613,24 @@ export default function AddItem() {
             </CardContent>
           </Card>
 
-          {/* Details Card */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Detail Barang</CardTitle>
+          {/* Details Card - More compact */}
+          <Card className="neu-raised border-0">
+            <CardHeader className="pb-3 px-4 pt-4">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <div className="neu-icon p-1 rounded-lg bg-green-100">
+                  <AlertCircle className="h-4 w-4 text-green-600" />
+                </div>
+                Detail Barang
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <CardContent className="space-y-4 px-4 pb-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="quantity" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="quantity" className="text-sm font-medium text-gray-700 mb-2 block">
                     Jumlah Total *
                     {isEditMode && originalItemData && (
-                      <span className="ml-2 text-xs text-blue-600">
-                        (Tersedia: {originalItemData.available_quantity})
+                      <span className="block text-xs text-blue-600 font-normal">
+                        Tersedia: {originalItemData.available_quantity}
                       </span>
                     )}
                   </Label>
@@ -626,28 +640,28 @@ export default function AddItem() {
                     min="1"
                     value={formData.quantity}
                     onChange={(e) => handleInputChange("quantity", parseInt(e.target.value) || 1)}
-                    className={`mt-1 ${errors.quantity ? "border-red-500" : ""}`}
+                    className={`neu-sunken border-0 bg-white/50 h-11 ${errors.quantity ? "ring-2 ring-red-500" : ""}`}
                   />
                   {errors.quantity && <p className="text-xs text-red-500 mt-1">{errors.quantity}</p>}
                   {isEditMode && originalItemData && (
                     <p className="text-xs text-gray-600 mt-1">
                       {formData.quantity > (originalItemData.quantity || 0) 
-                        ? `Menambah ${formData.quantity - (originalItemData.quantity || 0)} unit` 
+                        ? `+${formData.quantity - (originalItemData.quantity || 0)} unit` 
                         : formData.quantity < (originalItemData.quantity || 0)
-                        ? `Mengurangi ${(originalItemData.quantity || 0) - formData.quantity} unit`
-                        : "Tidak ada perubahan quantity"
+                        ? `-${(originalItemData.quantity || 0) - formData.quantity} unit`
+                        : "Tidak berubah"
                       }
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <Label htmlFor="status" className="text-sm font-medium text-gray-700">Status</Label>
+                  <Label htmlFor="status" className="text-sm font-medium text-gray-700 mb-2 block">Status</Label>
                   <Select
                     value={formData.status}
                     onValueChange={(value) => handleInputChange("status", value)}
                   >
-                    <SelectTrigger className="mt-1">
+                    <SelectTrigger className="neu-sunken border-0 bg-white/50 h-11">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -661,37 +675,39 @@ export default function AddItem() {
               </div>
 
               <div>
-                <Label htmlFor="location" className="text-sm font-medium text-gray-700">Lokasi *</Label>
+                <Label htmlFor="location" className="text-sm font-medium text-gray-700 mb-2 block">Lokasi *</Label>
                 <Input
                   id="location"
                   value={formData.location}
                   onChange={(e) => handleInputChange("location", e.target.value)}
                   placeholder="Contoh: Ruang Lab IPA, Lantai 2"
-                  className={`mt-1 ${errors.location ? "border-red-500" : ""}`}
+                  className={`neu-sunken border-0 bg-white/50 h-11 ${errors.location ? "ring-2 ring-red-500" : ""}`}
                 />
                 {errors.location && <p className="text-xs text-red-500 mt-1">{errors.location}</p>}
               </div>
             </CardContent>
           </Card>
 
-          {/* Image Upload Card */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Camera className="h-4 w-4 text-blue-600" />
+          {/* Image Upload Card - More compact */}
+          <Card className="neu-raised border-0">
+            <CardHeader className="pb-3 px-4 pt-4">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <div className="neu-icon p-1 rounded-lg bg-orange-100">
+                  <Camera className="h-4 w-4 text-orange-600" />
+                </div>
                 Foto Barang
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 px-4 pb-4">
               <div>
-                <Label htmlFor="image" className="text-sm font-medium text-gray-700">Upload Gambar</Label>
+                <Label htmlFor="image" className="text-sm font-medium text-gray-700 mb-2 block">Upload Gambar</Label>
                 <div className="mt-2">
                   {previewImage ? (
-                    <div className="relative">
+                    <div className="relative neu-sunken rounded-xl overflow-hidden">
                       <img 
                         src={previewImage} 
                         alt="Preview" 
-                        className="w-full h-32 object-cover rounded-lg border"
+                        className="w-full h-28 object-cover"
                       />
                       <Button
                         type="button"
@@ -701,15 +717,17 @@ export default function AddItem() {
                           setPreviewImage("");
                           setFormData(prev => ({ ...prev, image_url: "" }));
                         }}
-                        className="absolute top-2 right-2 p-1"
+                        className="absolute top-2 right-2 p-1 bg-red-600 hover:bg-red-700 text-white neu-button-raised hover:neu-button-pressed border-0 h-8 w-8"
                       >
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
                   ) : (
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
-                      <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600 mb-2">Upload foto barang</p>
+                    <div className="neu-sunken rounded-xl p-4 text-center bg-gray-50">
+                      <div className="neu-flat p-2 rounded-xl bg-orange-100 w-10 h-10 mx-auto mb-3 flex items-center justify-center">
+                        <Camera className="h-5 w-5 text-orange-600" />
+                      </div>
+                      <p className="text-sm text-gray-600 mb-3">Upload foto barang</p>
                       <Input
                         type="file"
                         accept="image/*"
@@ -719,70 +737,69 @@ export default function AddItem() {
                       />
                       <Label 
                         htmlFor="image-upload" 
-                        className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                        className="cursor-pointer bg-blue-600 text-white px-3 py-2 rounded-xl text-sm hover:bg-blue-700 transition-colors neu-button-raised hover:neu-button-pressed border-0 inline-block font-medium"
                       >
                         Pilih Gambar
                       </Label>
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Format: JPG, PNG (Max 5MB)</p>
+                <p className="text-xs text-gray-500 mt-2">Format: JPG, PNG (Max 5MB)</p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Helper Alert */}
-          <Alert className="bg-blue-50 border-blue-200">
-            <AlertCircle className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-800">
-              <strong>Informasi Quantity:</strong>{" "}
-              {isEditMode ? (
-                <>
-                  Saat edit, perubahan quantity akan otomatis mengatur jumlah tersedia. 
-                  Jika ada barang yang sedang dipinjam, pastikan tidak mengurangi quantity 
-                  di bawah jumlah yang dipinjam.
-                </>
-              ) : (
-                <>
-                  Quantity adalah jumlah total barang. Saat ada peminjaman, jumlah tersedia 
-                  akan berkurang otomatis dan kembali normal saat barang dikembalikan.
-                </>
-              )}
-            </AlertDescription>
+          {/* Helper Alert - More compact */}
+          <Alert className="neu-sunken bg-blue-50/50 border-0 p-3">
+            <div className="flex items-start gap-3">
+              <div className="neu-icon p-1 rounded-lg bg-blue-100 flex-shrink-0">
+                <AlertCircle className="h-4 w-4 text-blue-600" />
+              </div>
+              <AlertDescription className="text-blue-800 text-sm leading-relaxed">
+                <strong>Info Quantity:</strong>{" "}
+                {isEditMode ? (
+                  "Perubahan quantity akan mengatur jumlah tersedia. Pastikan tidak mengurangi di bawah jumlah yang sedang dipinjam."
+                ) : (
+                  "Quantity total barang. Saat peminjaman, jumlah tersedia berkurang otomatis dan kembali normal saat dikembalikan."
+                )}
+              </AlertDescription>
+            </div>
           </Alert>
         </form>
       </div>
 
-      {/* Sticky Action Buttons */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 p-4 z-40">
-        <div className="flex gap-3 max-w-lg mx-auto lg:max-w-2xl">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate("/manage-inventory")}
-            disabled={saving}
-            className="flex-1"
-          >
-            Batal
-          </Button>
-          <Button
-            type="submit"
-            disabled={saving}
-            className="flex-1 bg-blue-600 hover:bg-blue-700"
-            onClick={handleSubmit}
-          >
-            {saving ? (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                {isEditMode ? "Memperbarui..." : "Menyimpan..."}
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                {isEditMode ? "Perbarui" : "Simpan"}
-              </>
-            )}
-          </Button>
+      {/* Enhanced Sticky Action Buttons */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 z-40 safe-area-pb">
+        <div className="px-4 py-3">
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/manage-inventory")}
+              disabled={saving}
+              className="flex-1 h-11 neu-button-raised hover:neu-button-pressed bg-gray-100 text-gray-700 hover:bg-gray-200 border-0 font-medium"
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              disabled={saving}
+              className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white neu-button-raised hover:neu-button-pressed border-0 font-medium"
+              onClick={handleSubmit}
+            >
+              {saving ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  {isEditMode ? "Memperbarui..." : "Menyimpan..."}
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  {isEditMode ? "Perbarui Barang" : "Simpan Barang"}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

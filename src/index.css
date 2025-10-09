@@ -168,6 +168,7 @@ All colors MUST be HSL.
 @layer utilities {
   .neu-raised {
     background: hsl(var(--neu-bg));
+    text-color: black;
     box-shadow: 
       6px 6px 12px hsl(var(--shadow-hard)),
       -6px -6px 12px hsl(var(--neu-light));

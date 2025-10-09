@@ -108,48 +108,48 @@ export default function NewRequest() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-32 safe-area-pb">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="container-mobile py-4">
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+        <div className="px-4 py-5 safe-area-pt">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate("/inventory")}
-              className="neu-flat"
+              className="neu-flat rounded-xl hover:neu-pressed transition-all"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-2xl font-bold">Checkout Request</h1>
+            <h1 className="text-lg font-bold">Checkout Request</h1>
           </div>
         </div>
       </div>
 
-      <div className="container-mobile py-4 space-y-6">
+      <div className="px-4 py-6 space-y-6">
         {/* Alat yang Diminta */}
-        <Card className="neu-raised">
+        <Card className="neu-raised border-0">
           <CardHeader>
             <CardTitle className="text-lg">Alat yang Diminta ({cartItems.length})</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {cartItems.map((item) => (
+          <CardContent className="space-y-4">
+            {cartItems.map((item, index) => (
               <div
                 key={item.id}
-                className="flex gap-3 p-3 border border-border rounded-lg"
+                className={`flex gap-4 p-4 neu-sunken rounded-xl ${index > 0 ? 'mt-4' : ''}`}
               >
-                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center neu-sunken">
+                <div className="w-16 h-16 rounded-xl neu-flat bg-white flex items-center justify-center flex-shrink-0">
                   {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover rounded-lg" />
+                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover rounded-xl" />
                   ) : (
                     <Package className="h-8 w-8 text-muted-foreground" />
                   )}
                 </div>
                 
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h4 className="font-semibold">{item.name}</h4>
+                      <h4 className="font-semibold mb-1">{item.name}</h4>
                       <p className="text-xs text-muted-foreground">
                         Tersedia: {item.available_quantity}
                       </p>
@@ -158,18 +158,18 @@ export default function NewRequest() {
                       variant="ghost"
                       size="icon"
                       onClick={() => removeItem(item.id)}
-                      className="h-8 w-8"
+                      className="h-8 w-8 neu-flat hover:neu-pressed"
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
                   
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => updateItemQuantity(item.id, Math.max(1, item.requestedQuantity - 1))}
-                      className="h-8 w-8 p-0 neu-pressed"
+                      className="h-8 w-8 p-0 neu-pressed border-0"
                     >
                       <Minus className="h-4 w-4" />
                     </Button>
@@ -181,9 +181,9 @@ export default function NewRequest() {
                       variant="outline"
                       onClick={() => updateItemQuantity(item.id, Math.min(item.available_quantity, item.requestedQuantity + 1))}
                       disabled={item.requestedQuantity >= item.available_quantity}
-                      className="h-8 w-8 p-0 neu-flat"
+                      className="h-8 w-8 p-0 neu-flat border-0"
                     >
-                      +
+                      <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -193,13 +193,13 @@ export default function NewRequest() {
         </Card>
 
         {/* Detail Permintaan */}
-        <Card className="neu-raised">
+        <Card className="neu-raised border-0">
           <CardHeader>
             <CardTitle className="text-lg">Detail Permintaan</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             <div>
-              <Label htmlFor="purpose">Keperluan / Alasan *</Label>
+              <Label htmlFor="purpose" className="text-sm font-medium mb-2 block">Keperluan / Alasan *</Label>
               <Textarea
                 id="purpose"
                 value={formData.purpose}
@@ -207,18 +207,18 @@ export default function NewRequest() {
                   setFormData({ ...formData, purpose: e.target.value })
                 }
                 placeholder="Jelaskan keperluan peminjaman alat..."
-                className="min-h-24 neu-sunken"
+                className="min-h-24 neu-sunken border-0 bg-white/50"
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <Label>Tanggal Mulai *</Label>
+                <Label className="text-sm font-medium mb-2 block">Tanggal Mulai *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start text-left font-normal neu-sunken"
+                      className="w-full justify-start text-left font-normal neu-sunken border-0 bg-white/50"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {startDate ? (
@@ -240,15 +240,15 @@ export default function NewRequest() {
               </div>
 
               <div>
-                <Label>Tanggal Selesai *</Label>
+                <Label className="text-sm font-medium mb-2 block">Tanggal Selesai *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start text-left font-normal neu-sunken"
+                      className="w-full justify-start text-left font-normal neu-sunken border-0 bg-white/50"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
+                      {endDate ? format(endDate, "PPP") : <span>Pilih tanggal</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
@@ -267,63 +267,63 @@ export default function NewRequest() {
             </div>
 
             <div>
-              <Label htmlFor="location_usage">Location of Usage *</Label>
+              <Label htmlFor="location_usage" className="text-sm font-medium mb-2 block">Lokasi Penggunaan *</Label>
               <Input
                 id="location_usage"
                 value={formData.location_usage}
                 onChange={(e) =>
                   setFormData({ ...formData, location_usage: e.target.value })
                 }
-                placeholder="Where will the items be used?"
-                className="neu-sunken"
+                placeholder="Dimana alat akan digunakan?"
+                className="neu-sunken border-0 bg-white/50"
               />
             </div>
 
             <div>
-              <Label htmlFor="pic_name">Person in Charge (PIC) *</Label>
+              <Label htmlFor="pic_name" className="text-sm font-medium mb-2 block">Penanggung Jawab (PIC) *</Label>
               <Input
                 id="pic_name"
                 value={formData.pic_name}
                 onChange={(e) =>
                   setFormData({ ...formData, pic_name: e.target.value })
                 }
-                placeholder="Name of responsible person"
-                className="neu-sunken"
+                placeholder="Nama penanggung jawab"
+                className="neu-sunken border-0 bg-white/50"
               />
             </div>
 
             <div>
-              <Label htmlFor="pic_contact">Contact Number *</Label>
+              <Label htmlFor="pic_contact" className="text-sm font-medium mb-2 block">Nomor Kontak *</Label>
               <Input
                 id="pic_contact"
                 value={formData.pic_contact}
                 onChange={(e) =>
                   setFormData({ ...formData, pic_contact: e.target.value })
                 }
-                placeholder="Phone number"
-                className="neu-sunken"
+                placeholder="Nomor telepon"
+                className="neu-sunken border-0 bg-white/50"
               />
             </div>
           </CardContent>
         </Card>
 
         {/* Submit Button */}
-        <div className="space-y-3 pb-4">
+        <div className="space-y-4 pb-4">
           <Button
             size="lg"
-            className="w-full"
+            className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl neu-raised border-0"
             onClick={handleSubmit}
             disabled={loading}
           >
-            {loading ? "Submitting..." : "Submit Request"}
+            {loading ? "Mengirim..." : "Kirim Permintaan"}
           </Button>
           <Button
             variant="outline"
             size="lg"
-            className="w-full"
+            className="w-full h-12 rounded-xl neu-flat border-gray-300 hover:neu-pressed"
             onClick={() => navigate("/inventory")}
           >
-            Back to Inventory
+            Kembali ke Inventaris
           </Button>
         </div>
       </div>

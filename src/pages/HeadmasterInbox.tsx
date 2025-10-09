@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { toast } from "sonner";
 import { Inbox, CheckCircle, XCircle, FileText, Calendar, User, Eye } from "lucide-react";
 import { format } from "date-fns";
@@ -20,11 +20,42 @@ import {
 } from "@/components/ui/dialog";
 
 export default function HeadmasterInbox() {
-  const [requests, setRequests] = useState<any[]>([]);
+  interface RequestItem {
+    id: string;
+    quantity: number;
+    item?: {
+      name: string;
+      code?: string;
+      department?: { name: string };
+    };
+  }
+
+  interface BorrowRequest {
+    id: string;
+    purpose: string;
+    start_date: string;
+    end_date: string;
+    location_usage?: string;
+    pic_name: string;
+    pic_contact: string;
+    owner_notes?: string;
+    owner_reviewed_at?: string;
+    request_items?: RequestItem[];
+    borrower?: {
+      full_name: string;
+      unit: string;
+      phone?: string;
+    };
+    owner_reviewer?: {
+      full_name: string;
+    };
+  }
+
+  const [requests, setRequests] = useState<BorrowRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedRequest, setSelectedRequest] = useState<BorrowRequest | null>(null);
 
   useEffect(() => {
     fetchRequests();
@@ -84,8 +115,8 @@ export default function HeadmasterInbox() {
       toast.success(`Surat No. ${letterNumber} terbit—siap serah terima.`);
       setNotes("");
       fetchRequests();
-    } catch (error: any) {
-      toast.error(error.message || "Gagal menyetujui permintaan");
+    } catch (error: Error | unknown) {
+      toast.error(error instanceof Error ? error.message : "Gagal menyetujui permintaan");
     } finally {
       setProcessingId(null);
     }
@@ -146,14 +177,14 @@ export default function HeadmasterInbox() {
       toast.success("Permintaan ditolak");
       setNotes("");
       fetchRequests();
-    } catch (error: any) {
-      toast.error(error.message || "Gagal menolak permintaan");
+    } catch (error: Error | unknown) {
+      toast.error(error instanceof Error ? error.message : "Gagal menolak permintaan");
     } finally {
       setProcessingId(null);
     }
   };
 
-  const LetterPreview = ({ request }: { request: any }) => {
+  const LetterPreview = ({ request }: { request: BorrowRequest }) => {
     const previewLetterNumber = generateLetterNumber();
     
     return (
@@ -212,7 +243,7 @@ export default function HeadmasterInbox() {
               </tr>
             </thead>
             <tbody>
-              {request.request_items?.map((ri: any, idx: number) => (
+              {request.request_items?.map((ri: { id: string; quantity: number; item?: { name: string; code?: string; department?: { name: string } } }, idx: number) => (
                 <tr key={ri.id}>
                   <td className="border border-black p-2">{idx + 1}</td>
                   <td className="border border-black p-2">{ri.item?.name}</td>
@@ -274,19 +305,20 @@ export default function HeadmasterInbox() {
 
   if (loading) {
     return (
-      <MainLayout>
+      <div className="min-h-screen bg-background pb-16">
         <div className="flex items-center justify-center min-h-[400px]">
           <p className="text-muted-foreground">Memuat...</p>
         </div>
-      </MainLayout>
+        <BottomNav />
+      </div>
     );
   }
 
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <div className="min-h-screen bg-background pb-16">
+      <div className="container-mobile pt-6 space-y-6">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Kotak Masuk Kepala Sekolah</h1>
+          <h1 className="text-2xl font-bold mb-2">Kotak Masuk Kepala Sekolah</h1>
           <p className="text-muted-foreground">
             Review dan berikan persetujuan untuk penerbitan surat
           </p>
@@ -300,37 +332,42 @@ export default function HeadmasterInbox() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
             {requests.map((request) => (
               <Card key={request.id} className="neu-flat">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base leading-tight">
                         {request.borrower?.full_name}
                       </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-1 break-words">
                         {request.borrower?.unit}
                       </p>
+                      {request.borrower?.phone && (
+                        <p className="text-xs text-muted-foreground">
+                          {request.borrower.phone}
+                        </p>
+                      )}
                     </div>
-                    <Badge className="bg-warning text-warning-foreground">
+                    <Badge className="bg-warning text-warning-foreground flex-shrink-0">
                       Butuh Persetujuan
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Summary */}
-                  <div className="space-y-2 text-sm">
+                  <div className="space-y-3 text-sm">
                     <div className="flex items-start gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
+                      <FileText className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
                         <p className="font-medium">Keperluan</p>
-                        <p className="text-muted-foreground">{request.purpose}</p>
+                        <p className="text-muted-foreground break-words">{request.purpose}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
+                      <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
                         <p className="font-medium">Rentang Waktu</p>
                         <p className="text-muted-foreground">
                           {format(new Date(request.start_date), "dd MMM", { locale: id })} - {format(new Date(request.end_date), "dd MMM yyyy", { locale: id })}
@@ -338,21 +375,21 @@ export default function HeadmasterInbox() {
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
-                      <User className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="font-medium">PJ</p>
-                        <p className="text-muted-foreground">{request.pic_name}</p>
+                      <User className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">Penanggung Jawab</p>
+                        <p className="text-muted-foreground break-words">{request.pic_name} • {request.pic_contact}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Items Count */}
                   <div className="p-3 bg-muted/30 rounded-lg">
-                    <p className="text-sm font-medium">
-                      {request.request_items?.length || 0} Alat
+                    <p className="text-sm font-medium mb-2">
+                      {request.request_items?.length || 0} Alat Diminta
                     </p>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {request.request_items?.slice(0, 3).map((ri: any) => (
+                    <div className="flex flex-wrap gap-1">
+                      {request.request_items?.slice(0, 3).map((ri: { id: string; item?: { name: string } }) => (
                         <Badge key={ri.id} variant="outline" className="text-xs">
                           {ri.item?.name}
                         </Badge>
@@ -369,12 +406,12 @@ export default function HeadmasterInbox() {
                   {request.owner_notes && (
                     <div className="p-3 bg-muted/30 rounded-lg text-sm">
                       <p className="font-medium mb-1">Catatan Pemilik:</p>
-                      <p className="text-muted-foreground">{request.owner_notes}</p>
+                      <p className="text-muted-foreground break-words">{request.owner_notes}</p>
                     </div>
                   )}
 
                   {/* Actions */}
-                  <div className="space-y-3 pt-2">
+                  <div className="border-t pt-4 space-y-3">
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button
@@ -383,10 +420,10 @@ export default function HeadmasterInbox() {
                           onClick={() => setSelectedRequest(request)}
                         >
                           <Eye className="h-4 w-4 mr-2" />
-                          Lihat Surat
+                          Lihat Preview Surat
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-3xl">
+                      <DialogContent className="max-w-3xl mx-4">
                         <DialogHeader>
                           <DialogTitle>Preview Surat Peminjaman</DialogTitle>
                           <DialogDescription>
@@ -398,16 +435,16 @@ export default function HeadmasterInbox() {
                     </Dialog>
 
                     <div>
-                      <Label htmlFor={`notes-${request.id}`} className="text-xs">
+                      <Label htmlFor={`notes-${request.id}`} className="text-sm">
                         Catatan (opsional)
                       </Label>
                       <Textarea
                         id={`notes-${request.id}`}
-                        placeholder="Tambahkan catatan..."
+                        placeholder="Tambahkan catatan untuk pemohon..."
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         className="neu-sunken mt-2 text-sm"
-                        rows={2}
+                        rows={3}
                       />
                     </div>
 
@@ -424,7 +461,7 @@ export default function HeadmasterInbox() {
                             Tolak
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="mx-4">
                           <DialogHeader>
                             <DialogTitle>Konfirmasi Penolakan</DialogTitle>
                             <DialogDescription>
@@ -437,8 +474,8 @@ export default function HeadmasterInbox() {
                               <Textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
-                                placeholder="Jelaskan alasan..."
-                                className="mt-2"
+                                placeholder="Jelaskan alasan penolakan..."
+                                className="mt-2 neu-sunken"
                               />
                             </div>
                             <Button
@@ -457,10 +494,10 @@ export default function HeadmasterInbox() {
                         size="sm"
                         onClick={() => handleApprove(request.id)}
                         disabled={processingId === request.id}
-                        className="flex-1 neu-raised hover:neu-pressed bg-success text-success-foreground"
+                        className="flex-1 neu-flat bg-success text-success-foreground"
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
-                        {processingId === request.id ? "Memproses..." : "Setujui"}
+                        {processingId === request.id ? "Memproses..." : "Setujui & Terbitkan"}
                       </Button>
                     </div>
                   </div>
@@ -470,6 +507,7 @@ export default function HeadmasterInbox() {
           </div>
         )}
       </div>
-    </MainLayout>
+      <BottomNav />
+    </div>
   );
 }

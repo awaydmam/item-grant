@@ -160,9 +160,9 @@ export default function Profile() {
       {/* Header */}
       <div className="bg-gradient-to-b from-primary/5 to-background">
         <div className="container-mobile pt-6 pb-6">
-          <div className="text-center space-y-4">
+          <div className="text-center  pt-10       space-y-4  ">
             {/* Avatar */}
-            <div className="neu-raised w-20 h-20 rounded-full flex items-center justify-center mx-auto bg-primary/10">
+            <div className="neu-raised w-20          h-20 rounded-full flex items-center justify-center mx-auto bg-primary/10">
               <User className="h-10 w-10 text-primary" />
             </div>
             

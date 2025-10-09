@@ -16,7 +16,9 @@ interface Item {
   name: string;
   code: string;
   description: string;
+  quantity: number;
   available_quantity: number;
+  borrowed_quantity?: number;
   status: string;
   image_url: string;
   category_id: string;
@@ -57,18 +59,46 @@ export default function Inventory() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const departmentName = searchParams.get("name") || "Semua Department";
 
   useEffect(() => {
     fetchData();
+    
+    // Setup auto-refresh every 30 seconds for real-time updates
+    const interval = setInterval(fetchData, 30000);
+    
+    // Setup real-time subscription for borrow_requests changes
+    const channel = supabase
+      .channel('inventory-updates')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'borrow_requests' },
+        () => {
+          // Refresh data when borrow_requests change
+          fetchData();
+        }
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'request_items' },
+        () => {
+          // Refresh data when request_items change
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       
-      // Get all items
+      // Get all items with their base quantities
       const [itemsRes, categoriesRes, departmentsRes] = await Promise.all([
         supabase.from("items").select("*, categories(name), departments(name)").order("name"),
         supabase.from("categories").select("*"),
@@ -89,22 +119,30 @@ export default function Inventory() {
       // Calculate borrowed quantities per item
       const borrowedMap = new Map<string, number>();
       activeRequests?.forEach(request => {
-        request.request_items?.forEach((item: any) => {
+        request.request_items?.forEach((item: { item_id: string; quantity: number }) => {
           const current = borrowedMap.get(item.item_id) || 0;
           borrowedMap.set(item.item_id, current + item.quantity);
         });
       });
 
-      // Filter items that have actual availability (not currently borrowed)
-      const availableItems = itemsRes.data?.filter(item => {
+      // Update items with real available quantity (base - borrowed)
+      const itemsWithRealAvailability = itemsRes.data?.map(item => {
         const borrowed = borrowedMap.get(item.id) || 0;
-        const actuallyAvailable = item.quantity - borrowed;
-        return actuallyAvailable > 0;
+        const reallyAvailable = Math.max(0, item.quantity - borrowed);
+        
+        return {
+          ...item,
+          available_quantity: reallyAvailable,
+          borrowed_quantity: borrowed,
+          status: reallyAvailable === 0 ? 'unavailable' : 
+                  reallyAvailable < 3 ? 'limited' : 'available'
+        };
       }) || [];
 
-      setItems(availableItems);
+      setItems(itemsWithRealAvailability);
       if (categoriesRes.data) setCategories(categoriesRes.data);
       if (departmentsRes.data) setDepartments(departmentsRes.data);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error("Error loading inventory:", error);
       toast.error("Gagal memuat data inventory");
@@ -119,7 +157,8 @@ export default function Inventory() {
     const matchesCategory = selectedCategory === "all" || item.category_id === selectedCategory;
     const matchesDepartment = selectedDepartment === "all" || item.department_id === selectedDepartment;
     
-    return matchesSearch && matchesCategory && matchesDepartment && item.available_quantity > 0;
+    // Show all items that match filters, regardless of availability
+    return matchesSearch && matchesCategory && matchesDepartment;
   });
 
   const getCartItem = (itemId: string) => {
@@ -147,10 +186,14 @@ export default function Inventory() {
     updateQuantity(itemId, newQuantity);
   };
 
-  const getStatusBadge = (status: string, available: number) => {
-    if (available === 0) return <Badge variant="destructive">Habis</Badge>;
-    if (available < 3) return <Badge variant="outline">Terbatas</Badge>;
-    return <Badge variant="default">Tersedia</Badge>;
+  const getStatusBadge = (status: string, available: number, borrowed?: number) => {
+    if (available === 0) {
+      return <Badge variant="destructive">Tidak Tersedia {borrowed ? `(${borrowed} dipinjam)` : ''}</Badge>;
+    }
+    if (available < 3) {
+      return <Badge variant="outline">Terbatas ({available} tersisa)</Badge>;
+    }
+    return <Badge variant="default">Tersedia ({available})</Badge>;
   };
 
   const handleCheckout = () => {
@@ -163,52 +206,57 @@ export default function Inventory() {
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="container-mobile py-4">
-          <div className="flex items-center justify-between mb-4">
+      {/* Header dengan Safe Area Support */}
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border safe-area-top">
+        <div className="container-mobile pt-6 pb-4">
+          <div className="flex items-center justify-between mb-6 mt-2">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/departments')}
-                className="neu-flat"
+                className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed"
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div>
-                <h1 className="text-xl font-bold">{departmentName}</h1>
-                <p className="text-sm text-muted-foreground">
-                  {filteredItems.length} alat tersedia
-                </p>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl font-bold text-gray-900 leading-tight">{departmentName}</h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm text-muted-foreground">
+                    {filteredItems.length} alat • {filteredItems.filter(i => i.available_quantity > 0).length} tersedia
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    • Update: {lastUpdated.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
               </div>
             </div>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setShowFilters(!showFilters)}
-              className="neu-flat"
+              className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed"
             >
               <Filter className="h-5 w-5" />
             </Button>
           </div>
 
-          {/* Search Bar */}
-          <div className="relative">
+          {/* Search Bar dengan margin yang lebih baik */}
+          <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
             <Input
-              placeholder="Search for tools..."
+              placeholder="Cari Alat..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 neu-sunken"
+              className="pl-10 neu-sunken h-12 text-base"
             />
           </div>
 
-          {/* Filters */}
+          {/* Filters dengan spacing yang diperbaiki */}
           {showFilters && (
-            <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className="grid grid-cols-2 gap-4 mt-4 mb-2">
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="neu-sunken">
+                <SelectTrigger className="neu-sunken h-12">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -220,7 +268,7 @@ export default function Inventory() {
               </Select>
 
               <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                <SelectTrigger className="neu-sunken">
+                <SelectTrigger className="neu-sunken h-12">
                   <SelectValue placeholder="Department" />
                 </SelectTrigger>
                 <SelectContent>
@@ -235,78 +283,109 @@ export default function Inventory() {
         </div>
       </div>
 
-      {/* Items Grid */}
-      <div className="container-mobile py-4">
-        <div className="grid gap-4">
+      {/* Items Grid dengan spacing yang lebih baik */}
+      <div className="container-mobile py-6">
+        <div className="space-y-4">
           {filteredItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Package className="h-16 w-16 mb-4 opacity-50" />
-              <p className="text-lg">Tidak ada alat ditemukan</p>
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <div className="neu-sunken w-20 h-20 rounded-2xl flex items-center justify-center mb-6">
+                <Package className="h-10 w-10 opacity-50" />
+              </div>
+              <p className="text-lg font-medium">Tidak ada alat ditemukan</p>
+              <p className="text-sm text-center mt-2 opacity-70">Coba ubah filter atau kata kunci pencarian</p>
             </div>
           ) : (
             filteredItems.map((item) => {
               const cartItem = getCartItem(item.id);
               return (
-                <Card key={item.id} className="neu-raised p-4 hover:shadow-lg transition-all">
-                  <div className="flex gap-4">
-                    {/* Item Image */}
-                    <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center overflow-hidden neu-sunken">
-                      {item.image_url ? (
-                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <Package className="h-10 w-10 text-muted-foreground" />
-                      )}
-                    </div>
-
-                    {/* Item Info */}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h3 className="font-semibold text-lg">{item.name}</h3>
-                          {item.code && (
-                            <p className="text-xs text-muted-foreground">{item.code}</p>
-                          )}
-                        </div>
-                        {getStatusBadge(item.status, item.available_quantity)}
+                <Card key={item.id} className="neu-raised hover:shadow-lg transition-all duration-300 overflow-hidden inventory-card prevent-overlap">
+                  <div className="p-4 sm:p-5">
+                    <div className="inventory-card-content">
+                      {/* Item Image dengan enhancement */}
+                      <div className="inventory-image flex-shrink-0 rounded-xl bg-muted flex items-center justify-center overflow-hidden neu-sunken">
+                        {item.image_url ? (
+                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
+                        )}
                       </div>
 
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Tersedia: {item.available_quantity}
-                      </p>
-
-                      <div className="flex items-center gap-2">
-                        {cartItem ? (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleUpdateQuantity(item.id, cartItem.quantity - 1)}
-                              className="neu-pressed w-8 h-8 p-0"
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <span className="font-semibold w-8 text-center">
-                              {cartItem.quantity}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleUpdateQuantity(item.id, cartItem.quantity + 1)}
-                              disabled={cartItem.quantity >= item.available_quantity}
-                              className="neu-flat w-8 h-8 p-0"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
+                      {/* Item Info dengan spacing yang lebih baik */}
+                      <div className="inventory-info">
+                        {/* Title and Badge Section */}
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-base sm:text-lg text-gray-900 leading-tight line-clamp-2">{item.name}</h3>
+                              {item.code && (
+                                <p className="text-xs text-muted-foreground mt-1">{item.code}</p>
+                              )}
+                            </div>
+                            <div className="flex-shrink-0 ml-2">
+                              {getStatusBadge(item.status, item.available_quantity, item.borrowed_quantity)}
+                            </div>
                           </div>
-                        ) : (
-                          <Button
-                            size="sm"
-                            onClick={() => handleAddToCart(item)}
-                            className="w-full"
-                          >
-                            Request to Borrow
-                          </Button>
-                        )}
+
+                          {/* Info Section */}
+                          <div className="space-y-1">
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                              <span className="font-medium">Total:</span> {item.quantity || item.available_quantity} • 
+                              <span className="font-medium"> Tersedia:</span> {item.available_quantity}
+                              {item.borrowed_quantity && item.borrowed_quantity > 0 && (
+                                <span> • <span className="font-medium">Dipinjam:</span> {item.borrowed_quantity}</span>
+                              )}
+                            </p>
+                            {item.departments?.name && (
+                              <p className="text-xs text-muted-foreground">
+                                Pemilik: {item.departments.name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action Section */}
+                        <div className="mt-3 pt-1">
+                          {item.available_quantity === 0 ? (
+                            <Button
+                              size="sm"
+                              disabled
+                              className="w-full bg-gray-200 text-gray-500 h-9 text-sm"
+                            >
+                              Tidak Tersedia
+                            </Button>
+                          ) : cartItem ? (
+                            <div className="flex items-center justify-center gap-3">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUpdateQuantity(item.id, cartItem.quantity - 1)}
+                                className="w-9 h-9 p-0 flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed"
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <span className="font-semibold text-lg min-w-[2rem] text-center">
+                                {cartItem.quantity}
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUpdateQuantity(item.id, cartItem.quantity + 1)}
+                                disabled={cartItem.quantity >= item.available_quantity}
+                                className="w-9 h-9 p-0 flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed disabled:bg-gray-400 disabled:hover:bg-gray-400"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => handleAddToCart(item)}
+                              className="w-full h-9 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed"
+                            >
+                              Request to Borrow
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -317,33 +396,33 @@ export default function Inventory() {
         </div>
       </div>
 
-      {/* Sticky Bottom Cart Bar */}
+      {/* Sticky Bottom Cart Bar dengan enhancement */}
       {getTotalItems() > 0 && (
         <div className="sticky-bottom-bar">
           <div className="container-mobile">
             <Button
               onClick={handleCheckout}
               size="lg"
-              className="w-full relative bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg"
+              className="w-full relative h-14 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed"
             >
-              <ShoppingCart className="mr-2 h-5 w-5" />
+              <ShoppingCart className="mr-3 h-6 w-6" />
               Lanjut ke Keranjang ({getTotalItems()})
             </Button>
           </div>
         </div>
       )}
 
-      {/* Floating Cart Button - Alternative untuk desktop */}
+      {/* Floating Cart Button dengan enhancement */}
       {getTotalItems() > 0 && (
-        <div className="fixed bottom-20 right-4 z-50 md:block hidden">
+        <div className="fixed bottom-24 right-6 z-50 md:block hidden">
           <Button
             onClick={handleCheckout}
             size="lg"
-            className="rounded-full w-16 h-16 bg-primary hover:bg-primary/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110"
+            className="rounded-full w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed transition-all duration-300 hover:scale-110"
           >
             <div className="relative">
               <ShoppingCart className="h-6 w-6" />
-              <Badge className="absolute -top-2 -right-2 min-w-[20px] h-5 text-xs bg-destructive hover:bg-destructive">
+              <Badge className="absolute -top-2 -right-2 min-w-[20px] h-5 text-xs bg-destructive hover:bg-destructive border-0">
                 {getTotalItems()}
               </Badge>
             </div>

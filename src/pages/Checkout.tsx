@@ -150,105 +150,109 @@ export default function Checkout() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-32">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="container-mobile py-4">
-          <div className="flex items-center gap-3 mb-4">
+    <div className="min-h-screen bg-background pb-20">
+      {/* Header dengan Safe Area Support */}
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border safe-area-top">
+        <div className="container-mobile pt-6 pb-4">
+          <div className="flex items-center gap-3 mb-6 mt-2">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate("/cart")}
-              className="neu-flat"
+              className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Checkout</h1>
-              <p className="text-sm text-muted-foreground">Lengkapi detail pengajuan peminjaman</p>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold text-gray-900 leading-tight">Checkout</h1>
+              <p className="text-sm text-muted-foreground mt-1">Lengkapi detail pengajuan peminjaman</p>
             </div>
           </div>
           
-          {/* Progress Steps */}
-          <div className="flex items-center justify-center gap-4">
+          {/* Progress Steps dengan Neumorphism Enhancement */}
+          <div className="flex items-center justify-center gap-3 sm:gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold neu-raised shadow-lg">
                 ✓
               </div>
-              <span className="text-sm text-primary">Pilih Alat</span>
+              <span className="text-xs sm:text-sm font-medium text-blue-600">Pilih Alat</span>
             </div>
-            <div className="w-8 h-0.5 bg-primary"></div>
+            <div className="w-6 sm:w-8 h-0.5 bg-blue-600 rounded-full neu-flat"></div>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold neu-raised shadow-lg">
                 ✓
               </div>
-              <span className="text-sm text-primary">Review Keranjang</span>
+              <span className="text-xs sm:text-sm font-medium text-blue-600">Review Keranjang</span>
             </div>
-            <div className="w-8 h-0.5 bg-primary"></div>
+            <div className="w-6 sm:w-8 h-0.5 bg-blue-600 rounded-full neu-flat"></div>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold neu-raised shadow-lg border-2 border-blue-700">
                 3
               </div>
-              <span className="text-sm font-medium text-primary">Form Peminjaman</span>
+              <span className="text-xs sm:text-sm font-semibold text-blue-700">Form Peminjaman</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container-mobile py-4 space-y-6">
-        {/* Cart Summary */}
-        <Card className="neu-raised border-primary/20">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Package className="h-5 w-5" />
+      <div className="container-mobile py-6 space-y-6">
+        {/* Cart Summary dengan enhancement */}
+        <Card className="neu-raised border-primary/20 overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-3">
+              <div className="neu-raised p-2 rounded-xl bg-blue-100">
+                <Package className="h-5 w-5 text-blue-600" />
+              </div>
               Ringkasan Peminjaman ({getTotalItems()} unit)
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {cartItems.slice(0, 3).map((item) => (
-              <div key={item.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                <Badge variant="outline" className="font-mono">
-                  {item.requestedQuantity}x
+              <div key={item.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg neu-sunken">
+                <Badge variant="outline" className="font-mono neu-raised bg-blue-50 text-blue-700 border-blue-200">
+                  {item.quantity}x
                 </Badge>
-                <div className="flex-1">
-                  <h4 className="font-medium text-sm">{item.name}</h4>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-sm text-gray-900 leading-tight">{item.name}</h4>
                   {item.code && (
-                    <p className="text-xs text-muted-foreground">{item.code}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{item.code}</p>
                   )}
                 </div>
               </div>
             ))}
             {cartItems.length > 3 && (
-              <div className="text-center text-sm text-muted-foreground">
+              <div className="text-center text-sm text-muted-foreground p-2 bg-muted/20 rounded-lg">
                 +{cartItems.length - 3} alat lainnya
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Date Selection */}
-        <Card className="neu-flat">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5" />
+        {/* Date Selection dengan enhancement */}
+        <Card className="neu-flat overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-3">
+              <div className="neu-raised p-2 rounded-xl bg-green-100">
+                <CalendarIcon className="h-5 w-5 text-green-600" />
+              </div>
               Periode Peminjaman
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label>Tanggal Mulai *</Label>
+                <Label className="text-sm font-medium text-gray-700">Tanggal Mulai *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start text-left font-normal neu-sunken mt-2"
+                      className="w-full justify-start text-left font-normal mt-2 h-12 bg-white hover:bg-gray-50 border-0 neu-button-raised hover:neu-button-pressed"
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      <CalendarIcon className="mr-2 h-4 w-4 text-blue-600" />
                       {startDate ? (
                         format(startDate, "dd MMMM yyyy", { locale: id })
                       ) : (
-                        <span>Pilih tanggal mulai</span>
+                        <span className="text-muted-foreground">Pilih tanggal mulai</span>
                       )}
                     </Button>
                   </PopoverTrigger>
@@ -265,18 +269,18 @@ export default function Checkout() {
               </div>
 
               <div>
-                <Label>Tanggal Selesai *</Label>
+                <Label className="text-sm font-medium text-gray-700">Tanggal Selesai *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start text-left font-normal neu-sunken mt-2"
+                      className="w-full justify-start text-left font-normal mt-2 h-12 bg-white hover:bg-gray-50 border-0 neu-button-raised hover:neu-button-pressed"
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      <CalendarIcon className="mr-2 h-4 w-4 text-blue-600" />
                       {endDate ? (
                         format(endDate, "dd MMMM yyyy", { locale: id })
                       ) : (
-                        <span>Pilih tanggal selesai</span>
+                        <span className="text-muted-foreground">Pilih tanggal selesai</span>
                       )}
                     </Button>
                   </PopoverTrigger>
@@ -296,8 +300,8 @@ export default function Checkout() {
             </div>
 
             {startDate && endDate && (
-              <div className="text-center p-3 bg-primary/10 rounded-lg">
-                <p className="text-sm font-medium text-primary">
+              <div className="text-center p-4 bg-blue-50 rounded-lg neu-sunken border border-blue-200">
+                <p className="text-sm font-semibold text-blue-700">
                   Durasi: {calculateTotalDays()} hari
                 </p>
               </div>
@@ -305,15 +309,20 @@ export default function Checkout() {
           </CardContent>
         </Card>
 
-        {/* Details Form */}
-        <Card className="neu-flat">
-          <CardHeader>
-            <CardTitle className="text-lg">Detail Penggunaan</CardTitle>
+        {/* Details Form dengan enhancement */}
+        <Card className="neu-flat overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-3">
+              <div className="neu-raised p-2 rounded-xl bg-orange-100">
+                <CheckCircle className="h-5 w-5 text-orange-600" />
+              </div>
+              Detail Penggunaan
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             <div>
-              <Label htmlFor="purpose" className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
+              <Label htmlFor="purpose" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <CheckCircle className="h-4 w-4 text-orange-600" />
                 Keperluan / Tujuan Peminjaman *
               </Label>
               <Textarea
@@ -323,13 +332,13 @@ export default function Checkout() {
                   setFormData({ ...formData, purpose: e.target.value })
                 }
                 placeholder="Jelaskan untuk apa alat ini akan digunakan..."
-                className="min-h-20 neu-sunken mt-2"
+                className="min-h-24 neu-sunken mt-3 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
               />
             </div>
 
             <div>
-              <Label htmlFor="location_usage" className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
+              <Label htmlFor="location_usage" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <MapPin className="h-4 w-4 text-orange-600" />
                 Lokasi Penggunaan *
               </Label>
               <Input
@@ -339,35 +348,38 @@ export default function Checkout() {
                   setFormData({ ...formData, location_usage: e.target.value })
                 }
                 placeholder="Dimana alat akan digunakan?"
-                className="neu-sunken mt-2"
+                className="neu-sunken mt-3 h-12 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Person in Charge */}
-        <Card className="neu-flat">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-5 w-5" />
+        {/* Person in Charge dengan enhancement */}
+        <Card className="neu-flat overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-3">
+              <div className="neu-raised p-2 rounded-xl bg-purple-100">
+                <User className="h-5 w-5 text-purple-600" />
+              </div>
               Penanggung Jawab
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Use own contact checkbox */}
-            <div className="flex items-center space-x-2">
+          <CardContent className="space-y-5">
+            {/* Use own contact checkbox dengan enhancement */}
+            <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg neu-sunken border border-blue-200">
               <Checkbox
                 id="useOwnContact"
                 checked={useOwnContact}
                 onCheckedChange={(checked) => setUseOwnContact(checked as boolean)}
+                className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
               />
-              <Label htmlFor="useOwnContact" className="text-sm font-normal">
+              <Label htmlFor="useOwnContact" className="text-sm font-medium text-blue-700 cursor-pointer">
                 Gunakan nomor dan nama saya sendiri
               </Label>
             </div>
 
             <div>
-              <Label htmlFor="pic_name">Nama Penanggung Jawab *</Label>
+              <Label htmlFor="pic_name" className="text-sm font-medium text-gray-700">Nama Penanggung Jawab *</Label>
               <Input
                 id="pic_name"
                 value={formData.pic_name}
@@ -375,14 +387,14 @@ export default function Checkout() {
                   setFormData({ ...formData, pic_name: e.target.value })
                 }
                 placeholder="Nama lengkap PIC"
-                className="neu-sunken mt-2"
+                className="neu-sunken mt-3 h-12 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
                 disabled={useOwnContact}
               />
             </div>
 
             <div>
-              <Label htmlFor="pic_contact" className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
+              <Label htmlFor="pic_contact" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <Phone className="h-4 w-4 text-purple-600" />
                 Nomor Kontak PIC *
               </Label>
               <Input
@@ -393,34 +405,34 @@ export default function Checkout() {
                 }
                 placeholder="08xxxxxxxxxx"
                 type="tel"
-                className="neu-sunken mt-2"
+                className="neu-sunken mt-3 h-12 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
                 disabled={useOwnContact}
               />
               {useOwnContact && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Menggunakan data profil Anda: {userProfile?.full_name} - {userProfile?.phone}
+                <p className="text-xs text-blue-600 mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+                  Menggunakan data profil Anda: <span className="font-medium">{userProfile?.full_name}</span> - <span className="font-medium">{userProfile?.phone}</span>
                 </p>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Submit Button */}
-        <div className="space-y-3 pb-4">
+        {/* Submit Button dengan enhancement */}
+        <div className="space-y-4 pb-6">
           <Button
             size="lg"
-            className="w-full neu-raised"
+            className="w-full h-14 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed"
             onClick={handleSubmit}
             disabled={loading}
           >
             {loading ? (
               <>
-                <Package className="h-5 w-5 mr-2 animate-spin" />
+                <Package className="h-5 w-5 mr-3 animate-spin" />
                 Mengirim Pengajuan...
               </>
             ) : (
               <>
-                <CheckCircle className="h-5 w-5 mr-2" />
+                <CheckCircle className="h-5 w-5 mr-3" />
                 Kirim Pengajuan Peminjaman
               </>
             )}
@@ -429,7 +441,7 @@ export default function Checkout() {
           <Button
             variant="outline"
             size="lg"
-            className="w-full neu-flat"
+            className="w-full h-12 text-base font-medium border-gray-300 hover:bg-gray-50 border-0 neu-button-raised hover:neu-button-pressed"
             onClick={() => navigate("/cart")}
             disabled={loading}
           >

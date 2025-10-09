@@ -248,29 +248,29 @@ export default function ManageInventory() {
   });
 
   const ItemCard = ({ item }: { item: Item }) => (
-    <Card className="group hover:shadow-lg transition-all duration-200 border-gray-200">
+    <Card className="neu-raised border-0 group hover:neu-flat transition-all duration-200">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
-          <div className="flex-1">
-            <CardTitle className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
               {item.name}
             </CardTitle>
-            <p className="text-sm text-gray-500 mt-1">Kode: {item.code}</p>
+            <p className="text-xs text-gray-500 mt-1">Kode: {item.code}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1 ml-2">
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               onClick={() => navigate(`/edit-item/${item.id}`)}
-              className="p-2"
+              className="p-2 neu-button-raised hover:neu-button-pressed bg-blue-100 text-blue-600 hover:bg-blue-200"
             >
               <Edit className="h-4 w-4" />
             </Button>
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               onClick={() => handleDeleteItem(item.id)}
-              className="p-2 text-red-600 hover:text-red-700 hover:border-red-300"
+              className="p-2 neu-button-raised hover:neu-button-pressed bg-red-100 text-red-600 hover:bg-red-200"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -287,22 +287,22 @@ export default function ManageInventory() {
           </div>
           
           {item.description && (
-            <p className="text-sm text-gray-600 line-clamp-2">{item.description}</p>
+            <p className="text-xs text-gray-600 line-clamp-2">{item.description}</p>
           )}
           
-          <div className="flex flex-wrap gap-2 text-xs text-gray-500">
+          <div className="flex flex-wrap gap-1 text-xs">
             {item.categories && (
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs px-2 py-0">
                 {item.categories.name}
               </Badge>
             )}
             {item.departments && (
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs px-2 py-0">
                 {item.departments.name}
               </Badge>
             )}
             {item.location && (
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs px-2 py-0">
                 📍 {item.location}
               </Badge>
             )}
@@ -313,39 +313,39 @@ export default function ManageInventory() {
   );
 
   const ItemRow = ({ item }: { item: Item }) => (
-    <div className="flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
-      <div className="flex-1 space-y-1">
-        <div className="flex items-center gap-3">
-          <h3 className="font-medium text-gray-900">{item.name}</h3>
-          <span className="text-sm text-gray-500">({item.code})</span>
+    <div className="flex items-center justify-between p-4 hover:bg-blue-50/50 transition-colors border-b border-gray-100 last:border-b-0">
+      <div className="flex-1 space-y-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium text-gray-900 truncate">{item.name}</h3>
+          <span className="text-xs text-gray-500">({item.code})</span>
           {getStatusBadge(item.status)}
         </div>
-        <p className="text-sm text-gray-600">{item.description}</p>
+        <p className="text-sm text-gray-600 line-clamp-1">{item.description}</p>
         <div className="flex gap-2 text-xs text-gray-500">
-          {item.categories && <span>Kategori: {item.categories.name}</span>}
-          {item.departments && <span>• Departemen: {item.departments.name}</span>}
-          {item.location && <span>• Lokasi: {item.location}</span>}
+          {item.categories && <span>{item.categories.name}</span>}
+          {item.departments && <span>• {item.departments.name}</span>}
+          {item.location && <span>• {item.location}</span>}
         </div>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 ml-4">
         <div className="text-right">
           <div className="font-medium text-gray-900">{item.available_quantity}</div>
           <div className="text-xs text-gray-500">tersedia</div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={() => navigate(`/edit-item/${item.id}`)}
-            className="p-2"
+            className="p-2 neu-button-raised hover:neu-button-pressed bg-blue-100 text-blue-600 hover:bg-blue-200"
           >
             <Edit className="h-4 w-4" />
           </Button>
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={() => handleDeleteItem(item.id)}
-            className="p-2 text-red-600 hover:text-red-700 hover:border-red-300"
+            className="p-2 neu-button-raised hover:neu-button-pressed bg-red-100 text-red-600 hover:bg-red-200"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -356,124 +356,124 @@ export default function ManageInventory() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-24 safe-area-pb">
         {/* Header skeleton */}
-        <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200">
-          <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="w-9 h-9 bg-gray-200 rounded-xl animate-pulse"></div>
+        <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+          <div className="px-4 py-5 safe-area-pt">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 neu-flat rounded-xl animate-pulse"></div>
               <div className="space-y-2">
-                <div className="w-32 h-5 bg-gray-200 rounded animate-pulse"></div>
-                <div className="w-24 h-3 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-32 h-5 neu-flat rounded-xl animate-pulse"></div>
+                <div className="w-24 h-3 neu-flat rounded-xl animate-pulse"></div>
               </div>
             </div>
-            <div className="w-20 h-9 bg-gray-200 rounded-xl animate-pulse"></div>
           </div>
         </div>
         
         {/* Content skeleton */}
-        <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <div className="space-y-6">
-            {/* Filter skeleton */}
-            <div className="bg-white/80 rounded-xl p-6">
-              <div className="w-full h-11 bg-gray-200 rounded-xl animate-pulse"></div>
-            </div>
-            
-            {/* Stats skeleton */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-white/80 rounded-xl p-6">
-                  <div className="w-12 h-12 bg-gray-200 rounded-xl animate-pulse mx-auto mb-3"></div>
-                  <div className="w-8 h-6 bg-gray-200 rounded animate-pulse mx-auto mb-2"></div>
-                  <div className="w-16 h-4 bg-gray-200 rounded animate-pulse mx-auto"></div>
-                </div>
-              ))}
-            </div>
-            
-            {/* Items skeleton */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="bg-white/80 rounded-xl p-4">
-                  <div className="w-full h-32 bg-gray-200 rounded-lg animate-pulse mb-3"></div>
-                  <div className="w-3/4 h-5 bg-gray-200 rounded animate-pulse mb-2"></div>
-                  <div className="w-1/2 h-4 bg-gray-200 rounded animate-pulse"></div>
-                </div>
-              ))}
-            </div>
+        <div className="px-4 py-6 space-y-5">
+          {/* Stats skeleton */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="neu-raised rounded-xl p-4">
+                <div className="w-8 h-8 neu-flat rounded-xl animate-pulse mb-3"></div>
+                <div className="w-8 h-6 neu-flat rounded animate-pulse mb-2"></div>
+                <div className="w-16 h-4 neu-flat rounded animate-pulse"></div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Filter skeleton */}
+          <div className="neu-raised rounded-xl p-4">
+            <div className="w-full h-11 neu-sunken rounded-xl animate-pulse"></div>
+          </div>
+          
+          {/* Items skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="neu-raised rounded-xl p-4">
+                <div className="w-full h-24 neu-sunken rounded-lg animate-pulse mb-3"></div>
+                <div className="w-3/4 h-5 neu-flat rounded animate-pulse mb-2"></div>
+                <div className="w-1/2 h-4 neu-flat rounded animate-pulse"></div>
+              </div>
+            ))}
           </div>
         </div>
+        <BottomNav />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-16">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-24 safe-area-pb">
       {/* Enhanced Mobile-Friendly Header */}
-      <div className="bg-white/95 backdrop-blur-sm shadow-sm border-b border-gray-200 sticky top-0 z-20">
-        <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate('/')}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5 text-gray-600" />
-            </Button>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
-                Kelola Inventaris
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-500 truncate">
-                {isOwnerOnly
-                  ? `Departemen: ${userDepartment || 'Tidak diatur'}`
-                  : 'Semua Departemen'
-                }
-              </p>
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+        <div className="px-4 py-5 safe-area-pt">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => navigate('/')}
+                className="neu-button-raised rounded-xl hover:neu-button-pressed transition-all bg-gray-100 text-gray-700 hover:bg-gray-200"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">
+                  Kelola Inventaris
+                </h1>
+                <p className="text-sm text-gray-600">
+                  {isOwnerOnly
+                    ? `${userDepartment || 'Dept. Anda'}`
+                    : 'Semua Dept.'
+                  }
+                </p>
+              </div>
             </div>
+            <Button
+              onClick={() => navigate("/add-item")}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl neu-button-raised hover:neu-button-pressed border-0"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Tambah</span>
+              <span className="sm:hidden">+</span>
+            </Button>
           </div>
-          <Button
-            onClick={() => navigate("/add-item")}
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 sm:px-4 rounded-xl font-medium shadow-sm"
-          >
-            <Plus className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Tambah Barang</span>
-            <span className="sm:hidden">Tambah</span>
-          </Button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
+      <div className="px-4 py-6 space-y-5">
         {/* Quick Actions - Tampil jika inventory kosong */}
         {items.length === 0 && (
-          <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-            <CardContent className="p-6 sm:p-8 text-center">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Package className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
+          <Card className="neu-raised border-0">
+            <CardContent className="p-6 text-center">
+              <div className="w-16 h-16 neu-sunken bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Package className="h-8 w-8 text-blue-600" />
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Mulai Kelola Inventaris
               </h3>
-              <p className="text-sm sm:text-base text-gray-600 mb-6 max-w-md mx-auto leading-relaxed">
+              <p className="text-sm text-gray-600 mb-6 leading-relaxed">
                 {hasRole('owner') && !hasRole('admin') 
-                  ? `Belum ada barang di departemen ${getUserDepartment()}. Mulai dengan menambahkan barang pertama.`
-                  : 'Belum ada barang di inventaris. Mulai dengan menambahkan barang pertama.'
+                  ? `Belum ada barang di ${getUserDepartment()}. Tambahkan barang pertama.`
+                  : 'Belum ada barang. Tambahkan barang pertama.'
                 }
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="space-y-3">
                 <Button
                   onClick={() => navigate("/add-item")}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl neu-button-raised hover:neu-button-pressed border-0"
                 >
-                  <Plus className="h-5 w-5 mr-2" />
+                  <Plus className="h-4 w-4 mr-2" />
                   Tambah Barang Pertama
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => navigate("/")}
-                  className="border-gray-200 text-gray-700 hover:bg-gray-50 px-6 py-3 rounded-xl font-medium"
+                  className="w-full neu-button-raised hover:neu-button-pressed bg-gray-100 text-gray-700 hover:bg-gray-200 border-0"
                 >
                   Kembali ke Beranda
                 </Button>
@@ -482,115 +482,117 @@ export default function ManageInventory() {
           </Card>
         )}
 
-        {/* Enhanced Filters */}
-        <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1">
+        {/* Compact Filters */}
+        {items.length > 0 && (
+          <Card className="neu-raised border-0">
+            <CardContent className="p-4">
+              <div className="flex flex-col gap-3">
                 <div className="relative">
                   <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <Input
-                    placeholder="Cari nama barang, kode, atau deskripsi..."
+                    placeholder="Cari barang..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-xl"
+                    className="pl-10 h-10 neu-sunken border-0 bg-white/50"
                   />
                 </div>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Select value={filterCategory} onValueChange={setFilterCategory}>
-                  <SelectTrigger className="w-full sm:w-48 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-xl">
-                    <Filter className="h-4 w-4 mr-2 text-gray-500" />
-                    <SelectValue placeholder="Filter Kategori" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Kategori</SelectItem>
-                    {categories.map(category => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
                 
-                <div className="flex border rounded-xl overflow-hidden bg-gray-50">
-                  <Button
-                    size="sm"
-                    variant={viewMode === "grid" ? "default" : "ghost"}
-                    onClick={() => setViewMode("grid")}
-                    className={`rounded-none border-0 px-4 py-2 ${viewMode === "grid" ? 'bg-white shadow-sm' : 'bg-transparent'}`}
-                  >
-                    <Grid3X3 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={viewMode === "list" ? "default" : "ghost"}
-                    onClick={() => setViewMode("list")}
-                    className={`rounded-none border-0 px-4 py-2 ${viewMode === "list" ? 'bg-white shadow-sm' : 'bg-transparent'}`}
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
+                <div className="flex gap-2">
+                  <Select value={filterCategory} onValueChange={setFilterCategory}>
+                    <SelectTrigger className="flex-1 h-10 neu-sunken border-0 bg-white/50">
+                      <Filter className="h-4 w-4 mr-2 text-gray-500" />
+                      <SelectValue placeholder="Kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua</SelectItem>
+                      {categories.map(category => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="flex neu-sunken rounded-xl overflow-hidden bg-white/50">
+                    <Button
+                      size="sm"
+                      variant={viewMode === "grid" ? "default" : "ghost"}
+                      onClick={() => setViewMode("grid")}
+                      className={`h-10 rounded-none border-0 px-3 ${viewMode === "grid" ? 'bg-blue-600 text-white' : 'bg-transparent hover:bg-blue-50'}`}
+                    >
+                      <Grid3X3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={viewMode === "list" ? "default" : "ghost"}
+                      onClick={() => setViewMode("list")}
+                      className={`h-10 rounded-none border-0 px-3 ${viewMode === "list" ? 'bg-blue-600 text-white' : 'bg-transparent hover:bg-blue-50'}`}
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Barang</p>
-                  <p className="text-2xl font-bold text-gray-900">{items.length}</p>
-                </div>
-                <Package className="h-8 w-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
-          <Card>
+        )}
+
+        {/* Compact Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className="neu-raised border-0">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Tersedia</p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-xs text-gray-600 mb-1">Total</p>
+                  <p className="text-xl font-bold text-gray-900">{items.length}</p>
+                </div>
+                <div className="neu-sunken p-2 rounded-xl bg-blue-100">
+                  <Package className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="neu-raised border-0">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 mb-1">Tersedia</p>
+                  <p className="text-xl font-bold text-green-600">
                     {items.filter(item => item.status === 'available').length}
                   </p>
                 </div>
-                <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <div className="h-4 w-4 bg-green-600 rounded-full"></div>
+                <div className="neu-sunken p-2 rounded-xl bg-green-100">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="neu-raised border-0">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Perawatan</p>
-                  <p className="text-2xl font-bold text-yellow-600">
+                  <p className="text-xs text-gray-600 mb-1">Perawatan</p>
+                  <p className="text-xl font-bold text-yellow-600">
                     {items.filter(item => item.status === 'maintenance').length}
                   </p>
                 </div>
-                <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <div className="h-4 w-4 bg-yellow-600 rounded-full"></div>
+                <div className="neu-sunken p-2 rounded-xl bg-yellow-100">
+                  <Clock className="h-5 w-5 text-yellow-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="neu-raised border-0">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Tidak Tersedia</p>
-                  <p className="text-2xl font-bold text-red-600">
+                  <p className="text-xs text-gray-600 mb-1">N/A</p>
+                  <p className="text-xl font-bold text-red-600">
                     {items.filter(item => item.status === 'unavailable').length}
                   </p>
                 </div>
-                <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
-                  <div className="h-4 w-4 bg-red-600 rounded-full"></div>
+                <div className="neu-sunken p-2 rounded-xl bg-red-100">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
                 </div>
               </div>
             </CardContent>
@@ -598,43 +600,36 @@ export default function ManageInventory() {
         </div>
 
         {/* Items List */}
-        {filteredItems.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {items.length === 0 ? "Belum ada barang" : "Tidak ada hasil pencarian"}
-              </h3>
-              <p className="text-gray-500 mb-6">
-                {items.length === 0 
-                  ? "Mulai tambahkan barang inventaris sekolah Anda"
-                  : "Coba ubah kata kunci pencarian atau filter kategori"
-                }
+        {filteredItems.length === 0 && items.length > 0 ? (
+          <Card className="neu-raised border-0">
+            <CardContent className="p-8 text-center">
+              <div className="neu-sunken p-4 rounded-2xl bg-gray-100 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <Package className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada hasil</h3>
+              <p className="text-gray-500 mb-4">
+                Coba ubah kata kunci pencarian atau filter kategori
               </p>
-              {items.length === 0 && (
-                <Button onClick={() => navigate("/add-item")} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Tambah Barang Pertama
-                </Button>
-              )}
             </CardContent>
           </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Daftar Barang ({filteredItems.length})</span>
+        ) : items.length > 0 && (
+          <Card className="neu-raised border-0">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">
+                Daftar Barang ({filteredItems.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {viewMode === "grid" ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-                  {filteredItems.map(item => (
-                    <ItemCard key={item.id} item={item} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                  {filteredItems.map((item, index) => (
+                    <div key={item.id} className={index > 0 ? 'mt-0' : ''}>
+                      <ItemCard item={item} />
+                    </div>
                   ))}
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100">
+                <div className="neu-sunken rounded-xl mx-4 mb-4 overflow-hidden">
                   {filteredItems.map(item => (
                     <ItemRow key={item.id} item={item} />
                   ))}
@@ -644,23 +639,21 @@ export default function ManageInventory() {
           </Card>
         )}
 
-        {/* Floating Action Button untuk Tambah Barang */}
-        <div className="fixed bottom-20 right-6 z-40">
-          <Button
-            onClick={() => navigate("/add-item")}
-            size="lg"
-            className="h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 lg:w-auto lg:h-12 lg:rounded-lg lg:px-6"
-          >
-            <Plus className="h-6 w-6 lg:mr-2" />
-            <span className="hidden lg:inline">Tambah Barang</span>
-          </Button>
-        </div>
-        
-        {/* Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50 bottom-nav">
-          <BottomNav />
-        </div>
+        {/* Floating Action Button */}
+        {items.length > 0 && (
+          <div className="fixed bottom-20 right-4 z-40">
+            <Button
+              onClick={() => navigate("/add-item")}
+              size="lg"
+              className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 neu-button-raised hover:neu-button-pressed border-0"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
       </div>
+
+      <BottomNav />
     </div>
   );
 }

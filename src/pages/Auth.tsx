@@ -177,7 +177,7 @@ export default function Auth() {
 
               <Button
                 type="submit"
-                className="w-full neu-raised hover:neu-pressed"
+                className="w-full neu-raised hover:neu-pressed text-slate-900     "
                 disabled={loading}
               >
                 {loading ? "Memproses..." : isLogin ? "Masuk" : "Daftar"}

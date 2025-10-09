@@ -12,17 +12,47 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalItems: 0,
+    availableItems: 0,
+    borrowedItems: 0,
+    unavailableItems: 0,
     myRequests: 0,
     pendingApprovals: 0,
     activeLoans: 0,
   });
   const [userRoles, setUserRoles] = useState<string[]>([]);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<{ full_name?: string; unit?: string } | null>(null);
 
   useEffect(() => {
     fetchStats();
     fetchUserRoles();
     fetchUserProfile();
+    
+    // Setup auto-refresh every 30 seconds for real-time dashboard
+    const interval = setInterval(() => {
+      fetchStats();
+    }, 30000);
+
+    // Setup real-time subscription for updates
+    const channel = supabase
+      .channel('dashboard-updates')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'borrow_requests' },
+        () => {
+          fetchStats();
+        }
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'request_items' },
+        () => {
+          fetchStats();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchUserProfile = async () => {
@@ -58,11 +88,51 @@ export default function Dashboard() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Total items
-    const { count: itemsCount } = await supabase
+    // Get all items
+    const { data: allItems } = await supabase
       .from("items")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "available");
+      .select("id, quantity");
+
+    // Get active borrowed items
+    const { data: activeRequests } = await supabase
+      .from("borrow_requests")
+      .select(`
+        request_items (
+          item_id,
+          quantity
+        )
+      `)
+      .in("status", ["approved", "active"]);
+
+    // Calculate borrowed quantities per item
+    const borrowedMap = new Map<string, number>();
+    activeRequests?.forEach(request => {
+      request.request_items?.forEach((item: { item_id: string; quantity: number }) => {
+        const current = borrowedMap.get(item.item_id) || 0;
+        borrowedMap.set(item.item_id, current + item.quantity);
+      });
+    });
+
+    // Calculate real-time inventory stats
+    let totalItems = 0;
+    let availableItems = 0;
+    let borrowedItems = 0;
+    let unavailableItems = 0;
+
+    allItems?.forEach(item => {
+      const borrowed = borrowedMap.get(item.id) || 0;
+      const available = Math.max(0, item.quantity - borrowed);
+      
+      totalItems++;
+      if (available > 0) {
+        availableItems++;
+      } else {
+        unavailableItems++;
+      }
+      if (borrowed > 0) {
+        borrowedItems++;
+      }
+    });
 
     // My requests
     const { count: requestsCount } = await supabase
@@ -83,7 +153,10 @@ export default function Dashboard() {
       .eq("status", "active");
 
     setStats({
-      totalItems: itemsCount || 0,
+      totalItems,
+      availableItems,
+      borrowedItems,
+      unavailableItems,
       myRequests: requestsCount || 0,
       pendingApprovals: pendingCount || 0,
       activeLoans: activeCount || 0,
@@ -173,32 +246,86 @@ export default function Dashboard() {
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Items */}
           <Card className="neu-flat">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xs font-medium text-muted-foreground">
-                  Alat Tersedia
+                  Total Alat
                 </CardTitle>
                 <Package className="h-4 w-4 text-primary" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold">{stats.totalItems}</div>
+              <p className="text-xs text-muted-foreground">Semua kategori</p>
             </CardContent>
           </Card>
 
+          {/* Available Items */}
+          <Card className="neu-flat">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs font-medium text-muted-foreground">
+                  Tersedia
+                </CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-success" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-success">{stats.availableItems}</div>
+              <p className="text-xs text-muted-foreground">Bisa dipinjam</p>
+            </CardContent>
+          </Card>
+
+          {/* Borrowed Items */}
+          <Card className="neu-flat">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs font-medium text-muted-foreground">
+                  Sedang Dipinjam
+                </CardTitle>
+                <Clock className="h-4 w-4 text-warning" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-warning">{stats.borrowedItems}</div>
+              <p className="text-xs text-muted-foreground">Dalam peminjaman</p>
+            </CardContent>
+          </Card>
+
+          {/* Unavailable Items */}
+          <Card className="neu-flat">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs font-medium text-muted-foreground">
+                  Tidak Tersedia
+                </CardTitle>
+                <AlertCircle className="h-4 w-4 text-destructive" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-destructive">{stats.unavailableItems}</div>
+              <p className="text-xs text-muted-foreground">Habis/maintenance</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* User Activity Stats */}
+        <div className="grid grid-cols-2 gap-4">
           <Card className="neu-flat">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xs font-medium text-muted-foreground">
                   Pengajuan Saya
                 </CardTitle>
-                <FileText className="h-4 w-4 text-warning" />
+                <FileText className="h-4 w-4 text-primary" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold">{stats.myRequests}</div>
+              <p className="text-xs text-muted-foreground">Total pengajuan</p>
             </CardContent>
           </Card>
 
@@ -209,28 +336,32 @@ export default function Dashboard() {
                   <CardTitle className="text-xs font-medium text-muted-foreground">
                     Menunggu Approval
                   </CardTitle>
-                  <AlertCircle className="h-4 w-4 text-accent" />
+                  <Inbox className="h-4 w-4 text-accent" />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="text-xl font-bold">{stats.pendingApprovals}</div>
+                <p className="text-xs text-muted-foreground">Perlu ditinjau</p>
               </CardContent>
             </Card>
           )}
 
-          <Card className="neu-flat">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xs font-medium text-muted-foreground">
-                  Pinjaman Aktif
-                </CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-success" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold">{stats.activeLoans}</div>
-            </CardContent>
-          </Card>
+          {!userRoles.includes("owner") && !userRoles.includes("headmaster") && (
+            <Card className="neu-flat">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-medium text-muted-foreground">
+                    Pinjaman Aktif
+                  </CardTitle>
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl font-bold">{stats.activeLoans}</div>
+                <p className="text-xs text-muted-foreground">Sedang berjalan</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Quick Actions */}
