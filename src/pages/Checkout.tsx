@@ -6,8 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -35,8 +33,8 @@ export default function Checkout() {
     pic_contact: "",
   });
 
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
   useEffect(() => {
     if (cartItems.length === 0) {
@@ -86,7 +84,7 @@ export default function Checkout() {
       return;
     }
 
-    if (endDate < startDate) {
+    if (new Date(endDate) < new Date(startDate)) {
       toast.error("Tanggal selesai harus setelah tanggal mulai");
       return;
     }
@@ -104,8 +102,8 @@ export default function Checkout() {
           borrower_id: user.id,
           status: "pending_owner",
           purpose: formData.purpose,
-          start_date: format(startDate, "yyyy-MM-dd"),
-          end_date: format(endDate, "yyyy-MM-dd"),
+          start_date: startDate,
+          end_date: endDate,
           location_usage: formData.location_usage,
           pic_name: formData.pic_name,
           pic_contact: formData.pic_contact,
@@ -142,8 +140,10 @@ export default function Checkout() {
 
   const calculateTotalDays = () => {
     if (startDate && endDate) {
-      const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 untuk menghitung hari inclusive
       return diffDays;
     }
     return 0;
@@ -242,66 +242,40 @@ export default function Checkout() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm font-medium text-gray-700">Tanggal Mulai *</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal mt-2 h-12 bg-white hover:bg-gray-50 border-0 neu-button-raised hover:neu-button-pressed"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-blue-600" />
-                      {startDate ? (
-                        format(startDate, "dd MMMM yyyy", { locale: id })
-                      ) : (
-                        <span className="text-muted-foreground">Pilih tanggal mulai</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={startDate}
-                      onSelect={setStartDate}
-                      initialFocus
-                      disabled={(date) => date < new Date()}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="relative mt-2">
+                  <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-600 pointer-events-none z-10" />
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="pl-10 h-12 bg-white hover:bg-gray-50 border-0 neu-button-raised focus:neu-button-pressed"
+                    required
+                  />
+                </div>
               </div>
 
               <div>
                 <Label className="text-sm font-medium text-gray-700">Tanggal Selesai *</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal mt-2 h-12 bg-white hover:bg-gray-50 border-0 neu-button-raised hover:neu-button-pressed"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-blue-600" />
-                      {endDate ? (
-                        format(endDate, "dd MMMM yyyy", { locale: id })
-                      ) : (
-                        <span className="text-muted-foreground">Pilih tanggal selesai</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={endDate}
-                      onSelect={setEndDate}
-                      initialFocus
-                      disabled={(date) =>
-                        startDate ? date < startDate : date < new Date()
-                      }
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="relative mt-2">
+                  <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-600 pointer-events-none z-10" />
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={startDate} // Pastikan tanggal selesai tidak sebelum tanggal mulai
+                    className="pl-10 h-12 bg-white hover:bg-gray-50 border-0 neu-button-raised focus:neu-button-pressed"
+                    required
+                  />
+                </div>
               </div>
             </div>
 
             {startDate && endDate && (
               <div className="text-center p-4 bg-blue-50 rounded-lg neu-sunken border border-blue-200">
                 <p className="text-sm font-semibold text-blue-700">
+                  Periode: {format(new Date(startDate), "dd MMMM yyyy", { locale: id })} - {format(new Date(endDate), "dd MMMM yyyy", { locale: id })}
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
                   Durasi: {calculateTotalDays()} hari
                 </p>
               </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
+import { getOptimizedCategories, getOptimizedDepartments, clearRequestCache } from "@/lib/request-optimizer";
 
 interface Category {
   id: string;
@@ -168,84 +169,149 @@ export default function AddItem() {
     return `${prefix}-${timestamp}-${random}`;
   }, [formData.category_id, categories]);
 
+  const loadedRef = useRef(false);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Separate effect for role management to prevent infinite loops
   useEffect(() => {
-    // Only run logic when role information is available
     if (!roleLoading) {
-      const owner = hasRole('owner');
-      const admin = hasRole('admin');
-      setIsOwner(owner);
-      setIsAdmin(admin);
-
-      let isMounted = true;
-
-      const loadData = async () => {
-        try {
-          // Fetch common data
-          const [categoriesResult, departmentsResult] = await Promise.all([
-            supabase.from("categories").select("*").order("name"),
-            supabase.from("departments").select("*").order("name")
-          ]);
-
-          if (!isMounted) return;
-
-          if (categoriesResult.data) setCategories(categoriesResult.data);
-          if (departmentsResult.data) setDepartments(departmentsResult.data);
-
-          // Handle edit mode
-          if (isEditMode && id) {
-            const { data, error } = await supabase
-              .from("items")
-              .select("*")
-              .eq("id", id)
-              .single();
-            
-            if (error) throw error;
-            
-            if (data && isMounted) {
-              const itemFormData = {
-                name: data.name || "",
-                code: data.code || "",
-                description: data.description || "",
-                category_id: data.category_id || "",
-                department_id: data.department_id || "",
-                quantity: data.quantity || 1,
-                location: data.location || "",
-                image_url: data.image_url || "",
-                status: data.status || "available"
-              };
-              setFormData(itemFormData);
-              setOriginalItemData({...itemFormData, available_quantity: data.available_quantity || 1}); // Simpan data original termasuk available_quantity
-              setPreviewImage(data.image_url || "");
-            }
-          } 
-          // Handle new item mode for owners
-          else if (!isEditMode && owner && !admin && departmentsResult.data) {
-            const userDeptName = getUserDepartment();
-            if (userDeptName) {
-              const dept = departmentsResult.data.find(d => d.name === userDeptName);
-              if (dept && isMounted) {
-                setFormData(prev => ({ ...prev, department_id: dept.id }));
-              }
-            }
-          }
-        } catch (error) {
-          console.error("Error loading data:", error);
-          toast.error("Gagal memuat data.");
-          if (isEditMode) navigate("/manage-inventory");
-        } finally {
-          if (isMounted) {
-            setLoading(false);
-          }
-        }
-      };
-
-      loadData();
-
-      return () => {
-        isMounted = false;
-      };
+      const ownerRole = hasRole('owner');
+      const adminRole = hasRole('admin');
+      setIsOwner(ownerRole);
+      setIsAdmin(adminRole);
     }
-  }, [roleLoading, isEditMode, id, navigate, hasRole, getUserDepartment]);
+  }, [hasRole, roleLoading]);
+
+  // Memoize functions to prevent infinite loops
+  const loadItemData = useCallback(async (itemId: string) => {
+    console.log('Fetching item data for ID:', itemId);
+    const { data, error } = await supabase
+      .from("items")
+      .select("*")
+      .eq("id", itemId)
+      .single();
+    
+    if (error) {
+      console.error('Error loading item:', error);
+      if (error.code === 'PGRST116') {
+        toast.error("Barang tidak ditemukan");
+        navigate("/manage-inventory");
+        return null;
+      }
+      throw error;
+    }
+    
+    return data;
+  }, [navigate]);
+
+  const loadCommonData = useCallback(async () => {
+    const [categoriesResult, departmentsResult] = await Promise.all([
+      supabase.from("categories").select("*").order("name"),
+      supabase.from("departments").select("*").order("name")
+    ]);
+    
+    return {
+      categories: categoriesResult.data || [],
+      departments: departmentsResult.data || []
+    };
+  }, []);
+
+  // Main data loading effect - simplified dependencies
+  useEffect(() => {
+    if (roleLoading || loadedRef.current) return;
+
+    let isMounted = true;
+    console.log('AddItem effect running for ID:', id, 'isEditMode:', isEditMode);
+    loadedRef.current = true;
+
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        console.log('Starting data load...');
+
+        // Load common data dengan optimizer
+        const [categoriesData, departmentsData] = await Promise.all([
+          getOptimizedCategories(),
+          getOptimizedDepartments()
+        ]);
+        
+        if (!isMounted) return;
+        
+        setCategories(categoriesData as Category[]);
+        setDepartments(departmentsData as Department[]);
+
+        // Handle edit mode
+        if (isEditMode && id) {
+          const itemData = await loadItemData(id);
+          
+          if (itemData && isMounted) {
+            console.log('Setting form data with:', itemData);
+            const itemFormData = {
+              name: itemData.name || "",
+              code: itemData.code || "",
+              description: itemData.description || "",
+              category_id: itemData.category_id || "",
+              department_id: itemData.department_id || "",
+              quantity: itemData.quantity || 1,
+              location: itemData.location || "",
+              image_url: itemData.image_url || "",
+              status: itemData.status || "available"
+            };
+            setFormData(itemFormData);
+            setOriginalItemData({...itemFormData, available_quantity: itemData.available_quantity || 1});
+            setPreviewImage(itemData.image_url || "");
+            console.log('Form data set successfully');
+          }
+        } 
+        // Handle new item for owners - moved to separate effect
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast.error("Gagal memuat data.");
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+          console.log('Data loading completed');
+        }
+      }
+    };
+
+    // Set timeout untuk mencegah loading terlalu lama
+    loadTimeoutRef.current = setTimeout(() => {
+      if (isMounted) {
+        setLoading(false);
+        console.log('Loading timeout reached');
+        toast.error("Loading timeout. Silakan refresh halaman.");
+      }
+    }, 15000); // 15 detik timeout
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+    };
+  }, [id, isEditMode, roleLoading, loadItemData, loadCommonData]);
+
+  // Separate effect for handling new item department assignment
+  useEffect(() => {
+    if (!roleLoading && !isEditMode && isOwner && !isAdmin && departments.length > 0) {
+      const userDeptName = getUserDepartment();
+      if (userDeptName) {
+        const dept = departments.find(d => d.name === userDeptName);
+        if (dept && !formData.department_id) {
+          setFormData(prev => ({ ...prev, department_id: dept.id }));
+        }
+      }
+    }
+  }, [roleLoading, isEditMode, isOwner, isAdmin, departments, getUserDepartment, formData.department_id]);
+
+  // Reset loaded ref when ID changes
+  useEffect(() => {
+    console.log('ID changed, resetting loadedRef');
+    loadedRef.current = false;
+  }, [id]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -369,18 +435,84 @@ export default function AddItem() {
     }
   };
 
-  if (roleLoading || loading) {
+  if (roleLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-24 safe-area-pb flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="w-16 h-16 neu-raised bg-blue-700 rounded-2xl flex items-center justify-center mx-auto">
+          <div className="w-16 h-16 neu-raised bg-blue-100 rounded-2xl flex items-center justify-center mx-auto">
             <Package className="h-8 w-8 text-blue-600 animate-pulse" />
           </div>
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-gray-800">
-              {loading ? "Memuat Data Barang..." : "Memuat..."}
-            </h3>
-            <p className="text-gray-600">Silakan tunggu sebentar</p>
+            <h3 className="text-lg font-semibold text-gray-800">Memuat Role...</h3>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading screen specifically for data loading in edit mode
+  if (loading && isEditMode) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-24 safe-area-pb">
+        {/* Header with loading indicator */}
+        <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+          <div className="px-4 py-4 safe-area-pt">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => navigate("/manage-inventory")}
+                  className="neu-button-raised rounded-xl hover:neu-button-pressed transition-all bg-gray-100 text-gray-700 hover:bg-gray-200 w-10 h-10"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div>
+                  <h1 className="text-lg font-bold text-gray-900">Edit Barang</h1>
+                  <p className="text-xs text-gray-600 animate-pulse">Memuat data barang...</p>
+                </div>
+              </div>
+              <div className="neu-icon p-2 rounded-xl bg-blue-100">
+                <Package className="h-5 w-5 text-blue-600 animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Loading Content */}
+        <div className="px-4 py-6 space-y-4">
+          <div className="text-center space-y-6">
+            <div className="w-20 h-20 neu-raised bg-blue-100 rounded-2xl flex items-center justify-center mx-auto">
+              <RefreshCw className="h-10 w-10 text-blue-600 animate-spin" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold text-gray-800">Memuat Data Barang</h3>
+              <p className="text-gray-600">Mohon tunggu sebentar...</p>
+            </div>
+          </div>
+
+          {/* Skeleton Form */}
+          <div className="space-y-4 mt-8">
+            <Card className="neu-raised border-0">
+              <CardHeader className="pb-3 px-4 pt-4">
+                <div className="w-32 h-5 neu-flat rounded animate-pulse"></div>
+              </CardHeader>
+              <CardContent className="space-y-4 px-4 pb-4">
+                <div className="w-full h-11 neu-sunken rounded-xl animate-pulse"></div>
+                <div className="w-full h-11 neu-sunken rounded-xl animate-pulse"></div>
+                <div className="w-full h-24 neu-sunken rounded-xl animate-pulse"></div>
+              </CardContent>
+            </Card>
+            
+            <Card className="neu-raised border-0">
+              <CardHeader className="pb-3 px-4 pt-4">
+                <div className="w-24 h-5 neu-flat rounded animate-pulse"></div>
+              </CardHeader>
+              <CardContent className="space-y-4 px-4 pb-4">
+                <div className="w-full h-11 neu-sunken rounded-xl animate-pulse"></div>
+                <div className="w-full h-11 neu-sunken rounded-xl animate-pulse"></div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
@@ -399,6 +531,7 @@ export default function AddItem() {
                 size="icon"
                 onClick={() => navigate("/manage-inventory")}
                 className="neu-button-raised rounded-xl hover:neu-button-pressed transition-all bg-gray-100 text-gray-700 hover:bg-gray-200 w-10 h-10"
+                disabled={loading}
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
@@ -407,12 +540,17 @@ export default function AddItem() {
                   {isEditMode ? "Edit Barang" : "Tambah Barang"}
                 </h1>
                 <p className="text-xs text-gray-600">
-                  {isEditMode ? "Perbarui informasi barang" : "Tambah barang ke inventaris"}
+                  {loading 
+                    ? "Memuat data..." 
+                    : isEditMode 
+                      ? "Perbarui informasi barang" 
+                      : "Tambah barang ke inventaris"
+                  }
                 </p>
               </div>
             </div>
             <div className="neu-icon p-2 rounded-xl bg-blue-100">
-              <Package className="h-5 w-5 text-blue-600" />
+              <Package className={`h-5 w-5 text-blue-600 ${loading ? 'animate-pulse' : ''}`} />
             </div>
           </div>
         </div>
@@ -438,8 +576,9 @@ export default function AddItem() {
                   id="name"
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
-                  placeholder="Masukkan nama barang"
-                  className={`neu-sunken border-0 bg-white/50 h-11 ${errors.name ? "ring-2 ring-red-500" : ""}`}
+                  placeholder={loading ? "Memuat..." : "Masukkan nama barang"}
+                  className={`neu-sunken border-0 bg-white/50 h-11 ${errors.name ? "ring-2 ring-red-500" : ""} ${loading ? "animate-pulse" : ""}`}
+                  disabled={loading}
                 />
                 {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
               </div>
@@ -451,8 +590,9 @@ export default function AddItem() {
                     id="code"
                     value={formData.code}
                     onChange={(e) => handleInputChange("code", e.target.value)}
-                    placeholder="Kode unik barang"
-                    className={`neu-sunken border-0 bg-white/50 h-11 ${errors.code ? "ring-2 ring-red-500" : ""}`}
+                    placeholder={loading ? "Memuat..." : "Kode unik barang"}
+                    className={`neu-sunken border-0 bg-white/50 h-11 ${errors.code ? "ring-2 ring-red-500" : ""} ${loading ? "animate-pulse" : ""}`}
+                    disabled={loading}
                   />
                   <Button
                     type="button"
@@ -460,8 +600,9 @@ export default function AddItem() {
                     size="sm"
                     onClick={() => handleInputChange("code", generateCode())}
                     className="neu-button-raised hover:neu-button-pressed px-3 h-11 shrink-0 bg-blue-600 text-white hover:bg-blue-700 border-0"
+                    disabled={loading}
                   >
-                    <RefreshCw className="h-4 w-4" />
+                    <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                   </Button>
                 </div>
                 {errors.code && <p className="text-xs text-red-500 mt-1">{errors.code}</p>}
@@ -473,9 +614,10 @@ export default function AddItem() {
                   id="description"
                   value={formData.description}
                   onChange={(e) => handleInputChange("description", e.target.value)}
-                  placeholder="Deskripsi detail barang (opsional)"
+                  placeholder={loading ? "Memuat..." : "Deskripsi detail barang (opsional)"}
                   rows={2}
-                  className="neu-sunken border-0 bg-white/50 resize-none"
+                  className={`neu-sunken border-0 bg-white/50 resize-none ${loading ? "animate-pulse" : ""}`}
+                  disabled={loading}
                 />
               </div>
             </CardContent>
@@ -703,11 +845,11 @@ export default function AddItem() {
                 <Label htmlFor="image" className="text-sm font-medium text-gray-700 mb-2 block">Upload Gambar</Label>
                 <div className="mt-2">
                   {previewImage ? (
-                    <div className="relative neu-sunken rounded-xl overflow-hidden">
+                    <div className="relative neu-sunken rounded-xl overflow-hidden w-24 h-24 mx-auto">
                       <img 
                         src={previewImage} 
                         alt="Preview" 
-                        className="w-full h-28 object-cover"
+                        className="w-full h-full object-cover"
                       />
                       <Button
                         type="button"
@@ -717,9 +859,9 @@ export default function AddItem() {
                           setPreviewImage("");
                           setFormData(prev => ({ ...prev, image_url: "" }));
                         }}
-                        className="absolute top-2 right-2 p-1 bg-red-600 hover:bg-red-700 text-white neu-button-raised hover:neu-button-pressed border-0 h-8 w-8"
+                        className="absolute -top-2 -right-2 p-1 bg-red-600 hover:bg-red-700 text-white neu-button-raised hover:neu-button-pressed border-0 h-6 w-6 rounded-full"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 w-3" />
                       </Button>
                     </div>
                   ) : (

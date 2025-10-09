@@ -61,22 +61,22 @@ export default function Departments() {
           const deptItems = itemsData.filter(item => item.department_id === dept.id);
           const totalCount = deptItems.length;
           
-          let availableCount = 0;
-          let borrowedCount = 0;
+          let totalAvailableQuantity = 0;
+          let totalBorrowedQuantity = 0;
           
           deptItems.forEach(item => {
             const borrowed = borrowedMap.get(item.id) || 0;
             const available = Math.max(0, item.quantity - borrowed);
             
-            if (available > 0) availableCount++;
-            if (borrowed > 0) borrowedCount++;
+            totalAvailableQuantity += available;
+            totalBorrowedQuantity += borrowed;
           });
 
           return {
             ...dept,
             item_count: totalCount,
-            available_count: availableCount,
-            borrowed_count: borrowedCount
+            available_count: totalAvailableQuantity,
+            borrowed_count: totalBorrowedQuantity
           };
         });
         

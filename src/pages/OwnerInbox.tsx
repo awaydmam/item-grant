@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { toast } from "sonner";
-import { Inbox, CheckCircle, XCircle, Edit3, Calendar, User } from "lucide-react";
+import { Inbox, CheckCircle, XCircle, Edit3, Calendar, User, FileText, Download, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import {
@@ -18,12 +18,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import { BorrowLetter } from "@/components/PDF/BorrowLetter";
 
 export default function OwnerInbox() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionNotes, setActionNotes] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [previewRequest, setPreviewRequest] = useState<any>(null);
+  const [showLetterPreview, setShowLetterPreview] = useState(false);
 
   useEffect(() => {
     fetchRequests();
@@ -71,6 +75,25 @@ export default function OwnerInbox() {
         .eq("id", requestId);
 
       if (error) throw error;
+
+      // Get request for PDF generation
+      const { data: requestData } = await supabase
+        .from("borrow_requests")
+        .select(`
+          *,
+          request_items(
+            *,
+            items(name, code, description)
+          ),
+          borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit, phone)
+        `)
+        .eq("id", requestId)
+        .single();
+
+      if (requestData) {
+        setPreviewRequest(requestData);
+        setShowLetterPreview(true);
+      }
 
       toast.success("Disetujui! Surat internal siap dicetak.");
       setActionNotes("");
@@ -171,6 +194,51 @@ export default function OwnerInbox() {
       toast.error(error.message || "Gagal menolak permintaan");
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!previewRequest) return;
+    
+    try {
+      // Get headmaster info
+      const { data: headmasterRoles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "headmaster")
+        .single();
+
+      let headmasterName = undefined;
+      if (headmasterRoles) {
+        const { data: headmasterProfile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", headmasterRoles.user_id)
+          .single();
+
+        headmasterName = headmasterProfile?.full_name;
+      }
+
+      // Get owner info
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: ownerProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user?.id)
+        .single();
+
+      return {
+        request: previewRequest,
+        ownerName: ownerProfile?.full_name,
+        headmasterName,
+        schoolName: "SMK Negeri 1 Bandung",
+        schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+        letterType: 'internal' as const
+      };
+    } catch (error) {
+      toast.error("Gagal menyiapkan data surat");
+      console.error(error);
+      return null;
     }
   };
 
@@ -302,7 +370,7 @@ export default function OwnerInbox() {
                           onClick={() => handleDirectLetter(request.id)}
                           disabled={processingId === request.id}
                           variant="default"
-                          className="w-full neu-flat text-left"
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white border-0 neu-button-raised hover:neu-button-pressed text-left"
                           size="lg"
                         >
                           <div className="flex items-center justify-center gap-2">
@@ -318,7 +386,7 @@ export default function OwnerInbox() {
                           onClick={() => handleSendToHeadmaster(request.id)}
                           disabled={processingId === request.id}
                           variant="outline"
-                          className="w-full neu-flat text-left"
+                          className="w-full bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 border-0 neu-button-raised hover:neu-button-pressed text-left"
                           size="lg"
                         >
                           <div className="flex items-center justify-center gap-2">
@@ -334,7 +402,7 @@ export default function OwnerInbox() {
                           <DialogTrigger asChild>
                             <Button
                               variant="destructive"
-                              className="w-full"
+                              className="w-full bg-red-500 hover:bg-red-600 text-white border-0 neu-button-raised hover:neu-button-pressed"
                               disabled={processingId === request.id}
                               size="lg"
                             >
@@ -362,7 +430,7 @@ export default function OwnerInbox() {
                               </div>
                               <Button
                                 variant="destructive"
-                                className="w-full"
+                                className="w-full bg-red-500 hover:bg-red-600 text-white border-0 neu-button-raised hover:neu-button-pressed"
                                 onClick={() => handleReject(request.id)}
                                 disabled={!actionNotes.trim()}
                               >
@@ -380,6 +448,80 @@ export default function OwnerInbox() {
           </div>
         )}
       </div>
+      
+      {/* Letter Preview Dialog */}
+      <Dialog open={showLetterPreview} onOpenChange={setShowLetterPreview}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Preview Surat Peminjaman</DialogTitle>
+            <DialogDescription>
+              Surat peminjaman telah disetujui dan siap untuk dicetak
+            </DialogDescription>
+          </DialogHeader>
+          
+          {previewRequest && (
+            <div className="space-y-4">
+              {/* PDF Preview */}
+              <div className="h-[600px] border rounded-lg overflow-hidden">
+                <PDFViewer 
+                  style={{ width: '100%', height: '100%' }}
+                  showToolbar={false}
+                >
+                  <BorrowLetter 
+                    data={{
+                      request: previewRequest,
+                      ownerName: "Pengelola Inventaris", // akan diupdate dengan data real
+                      headmasterName: undefined,
+                      schoolName: "SMK Negeri 1 Bandung",
+                      schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+                      letterType: 'internal'
+                    }}
+                  />
+                </PDFViewer>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-4 justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowLetterPreview(false)}
+                  className="bg-gray-50 hover:bg-gray-100 neu-button-raised hover:neu-button-pressed border-0"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Tutup Preview
+                </Button>
+                
+                <PDFDownloadLink
+                  document={
+                    <BorrowLetter 
+                      data={{
+                        request: previewRequest,
+                        ownerName: "Pengelola Inventaris",
+                        headmasterName: undefined,
+                        schoolName: "SMK Negeri 1 Bandung",
+                        schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+                        letterType: 'internal'
+                      }}
+                    />
+                  }
+                  fileName={`Surat_Peminjaman_${previewRequest.borrower?.full_name?.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`}
+                >
+                  {({ loading }) => (
+                    <Button 
+                      disabled={loading}
+                      className="bg-blue-600 hover:bg-blue-700 text-white neu-button-raised hover:neu-button-pressed border-0"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      {loading ? 'Mempersiapkan PDF...' : 'Download PDF'}
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      
       <BottomNav />
     </div>
   );

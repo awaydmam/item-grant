@@ -9,6 +9,7 @@ export const BottomNav = () => {
   const location = useLocation();
   const { getTotalItems } = useCart();
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [unreadLetters, setUnreadLetters] = useState(0);
 
   useEffect(() => {
     const fetchUserRoles = async () => {
@@ -26,6 +27,45 @@ export const BottomNav = () => {
     };
 
     fetchUserRoles();
+  }, []);
+
+  useEffect(() => {
+    const fetchUnreadLetters = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Check for approved requests that borrower hasn't seen yet
+      const { count } = await supabase
+        .from("borrow_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("borrower_id", session.user.id)
+        .eq("status", "approved")
+        .is("letter_viewed_at", null);
+
+      setUnreadLetters(count || 0);
+    };
+
+    fetchUnreadLetters();
+
+    // Setup realtime subscription for new approved letters
+    const channel = supabase
+      .channel('approved-letters')
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'borrow_requests',
+          filter: 'status=eq.approved'
+        },
+        () => {
+          fetchUnreadLetters();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const isActive = (path: string) => location.pathname === path;
@@ -67,7 +107,7 @@ export const BottomNav = () => {
       label: "Orders",
       icon: FileText,
       path: "/orders",
-      badge: null
+      badge: unreadLetters > 0 ? unreadLetters : null
     },
     {
       id: "profile",

@@ -18,13 +18,24 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Eye
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { toast } from "sonner";
 import { generatePDF } from "@/lib/pdfGenerator";
 import { startLoanProcess, completeLoanProcess } from "@/lib/loanManagement";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import { BorrowLetter } from "@/components/PDF/BorrowLetter";
 
 interface RequestDetail {
   id: string;
@@ -67,6 +78,7 @@ export default function RequestDetail() {
   const navigate = useNavigate();
   const [request, setRequest] = useState<RequestDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showLetterPreview, setShowLetterPreview] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -140,6 +152,26 @@ export default function RequestDetail() {
       cancelled: { label: "Dibatalkan", color: "bg-gray-100 text-gray-700", icon: XCircle }
     };
     return statusMap[status] || { label: status, color: "bg-gray-100 text-gray-700", icon: AlertCircle };
+  };
+
+  const markLetterAsViewed = async () => {
+    if (!request || !requestId) return;
+
+    try {
+      const { error } = await supabase
+        .from("borrow_requests")
+        .update({ letter_viewed_at: new Date().toISOString() })
+        .eq("id", requestId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error marking letter as viewed:", error);
+    }
+  };
+
+  const handlePreviewLetter = () => {
+    markLetterAsViewed();
+    setShowLetterPreview(true);
   };
 
   const handleStartLoan = async () => {
@@ -364,14 +396,24 @@ export default function RequestDetail() {
                     <FileText className="h-6 w-6 text-green-600" />
                   </div>
                 </div>
-                <Button
-                  onClick={handleDownloadLetter}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl h-12 neu-button-raised border-0"
-                  size="lg"
-                >
-                  <Download className="h-5 w-5 mr-2" />
-                  Download Surat Peminjaman (PDF)
-                </Button>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    onClick={handlePreviewLetter}
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 neu-button-raised hover:neu-button-pressed border-0"
+                    size="lg"
+                  >
+                    <Eye className="h-5 w-5 mr-2" />
+                    Preview Surat
+                  </Button>
+                  <Button
+                    onClick={handleDownloadLetter}
+                    className="bg-green-600 hover:bg-green-700 text-white rounded-xl h-12 neu-button-raised hover:neu-button-pressed border-0"
+                    size="lg"
+                  >
+                    <Download className="h-5 w-5 mr-2" />
+                    Download PDF
+                  </Button>
+                </div>
                 <p className="text-xs text-green-700 mt-3 text-center">
                   Surat resmi lengkap dengan kop dan tanda tangan
                 </p>
@@ -548,6 +590,99 @@ export default function RequestDetail() {
           </Card>
         )}
       </div>
+
+      {/* Letter Preview Dialog */}
+      <Dialog open={showLetterPreview} onOpenChange={setShowLetterPreview}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Preview Surat Peminjaman</DialogTitle>
+            <DialogDescription>
+              Surat peminjaman resmi yang telah disetujui
+            </DialogDescription>
+          </DialogHeader>
+          
+          {request && (
+            <div className="space-y-4">
+              {/* PDF Preview */}
+              <div className="h-[600px] border rounded-lg overflow-hidden">
+                <PDFViewer 
+                  style={{ width: '100%', height: '100%' }}
+                  showToolbar={false}
+                >
+                  <BorrowLetter 
+                    data={{
+                      request: {
+                        ...request,
+                        request_items: request.request_items.map(item => ({
+                          quantity: item.quantity,
+                          items: {
+                            name: item.items.name,
+                            code: item.items.code,
+                            description: item.items.description
+                          }
+                        }))
+                      },
+                      ownerName: "Pengelola Inventaris",
+                      headmasterName: "Kepala Sekolah",
+                      schoolName: "SMK Negeri 1 Bandung",
+                      schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+                      letterType: 'official'
+                    }}
+                  />
+                </PDFViewer>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-4 justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowLetterPreview(false)}
+                  className="bg-gray-50 hover:bg-gray-100 neu-button-raised hover:neu-button-pressed border-0"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Tutup Preview
+                </Button>
+                
+                <PDFDownloadLink
+                  document={
+                    <BorrowLetter 
+                      data={{
+                        request: {
+                          ...request,
+                          request_items: request.request_items.map(item => ({
+                            quantity: item.quantity,
+                            items: {
+                              name: item.items.name,
+                              code: item.items.code,
+                              description: item.items.description
+                            }
+                          }))
+                        },
+                        ownerName: "Pengelola Inventaris",
+                        headmasterName: "Kepala Sekolah",
+                        schoolName: "SMK Negeri 1 Bandung",
+                        schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+                        letterType: 'official'
+                      }}
+                    />
+                  }
+                  fileName={`Surat_Peminjaman_${request.borrower?.full_name?.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`}
+                >
+                  {({ loading }) => (
+                    <Button 
+                      disabled={loading}
+                      className="bg-green-600 hover:bg-green-700 text-white neu-button-raised hover:neu-button-pressed border-0"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      {loading ? 'Mempersiapkan PDF...' : 'Download PDF'}
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <BottomNav />
     </div>

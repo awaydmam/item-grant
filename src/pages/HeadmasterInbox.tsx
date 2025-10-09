@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { toast } from "sonner";
-import { Inbox, CheckCircle, XCircle, FileText, Calendar, User, Eye } from "lucide-react";
+import { Inbox, CheckCircle, XCircle, FileText, Calendar, User, Eye, Download } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import {
@@ -18,6 +18,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import { BorrowLetter } from "@/components/PDF/BorrowLetter";
 
 export default function HeadmasterInbox() {
   interface RequestItem {
@@ -56,6 +58,8 @@ export default function HeadmasterInbox() {
   const [notes, setNotes] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<BorrowRequest | null>(null);
+  const [previewRequest, setPreviewRequest] = useState<BorrowRequest | null>(null);
+  const [showLetterPreview, setShowLetterPreview] = useState(false);
 
   useEffect(() => {
     fetchRequests();
@@ -111,6 +115,25 @@ export default function HeadmasterInbox() {
         .eq("id", requestId);
 
       if (error) throw error;
+
+      // Get updated request for PDF preview
+      const { data: requestData } = await supabase
+        .from("borrow_requests")
+        .select(`
+          *,
+          request_items(
+            *,
+            items(name, code, description)
+          ),
+          borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit, phone)
+        `)
+        .eq("id", requestId)
+        .single();
+
+      if (requestData) {
+        setPreviewRequest(requestData);
+        setShowLetterPreview(true);
+      }
 
       toast.success(`Surat No. ${letterNumber} terbit—siap serah terima.`);
       setNotes("");
@@ -507,6 +530,80 @@ export default function HeadmasterInbox() {
           </div>
         )}
       </div>
+      
+      {/* Letter Preview Dialog */}
+      <Dialog open={showLetterPreview} onOpenChange={setShowLetterPreview}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Preview Surat Peminjaman - Disetujui Kepala Sekolah</DialogTitle>
+            <DialogDescription>
+              Surat peminjaman telah disetujui dan siap untuk dicetak dengan tanda tangan resmi
+            </DialogDescription>
+          </DialogHeader>
+          
+          {previewRequest && (
+            <div className="space-y-4">
+              {/* PDF Preview */}
+              <div className="h-[600px] border rounded-lg overflow-hidden">
+                <PDFViewer 
+                  style={{ width: '100%', height: '100%' }}
+                  showToolbar={false}
+                >
+                  <BorrowLetter 
+                    data={{
+                      request: previewRequest,
+                      ownerName: "Pengelola Inventaris",
+                      headmasterName: "Kepala Sekolah", // nanti diambil dari database
+                      schoolName: "SMK Negeri 1 Bandung",
+                      schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+                      letterType: 'official'
+                    }}
+                  />
+                </PDFViewer>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-4 justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowLetterPreview(false)}
+                  className="bg-gray-50 hover:bg-gray-100 neu-button-raised hover:neu-button-pressed border-0"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Tutup Preview
+                </Button>
+                
+                <PDFDownloadLink
+                  document={
+                    <BorrowLetter 
+                      data={{
+                        request: previewRequest,
+                        ownerName: "Pengelola Inventaris",
+                        headmasterName: "Kepala Sekolah",
+                        schoolName: "SMK Negeri 1 Bandung",
+                        schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+                        letterType: 'official'
+                      }}
+                    />
+                  }
+                  fileName={`Surat_Peminjaman_${previewRequest.borrower?.full_name?.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`}
+                >
+                  {({ loading }) => (
+                    <Button 
+                      disabled={loading}
+                      className="bg-blue-600 hover:bg-blue-700 text-white neu-button-raised hover:neu-button-pressed border-0"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      {loading ? 'Mempersiapkan PDF...' : 'Download PDF'}
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      
       <BottomNav />
     </div>
   );

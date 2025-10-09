@@ -11,6 +11,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { getOptimizedItems, getOptimizedCategories, clearRequestCache, forceRefreshItems } from "@/lib/request-optimizer";
 
 interface Item {
   id: string;
@@ -51,46 +52,20 @@ export default function ManageInventory() {
   const [userDepartment, setUserDepartment] = useState<string | null>(null);
   const [canManage, setCanManage] = useState(true);
 
-  // Refresh function for manual refresh
+  // Refresh function dengan optimizer
   const refreshData = useCallback(async () => {
     try {
       setLoading(true);
       
-      let query = supabase
-        .from("items")
-        .select(`
-          *,
-          categories (
-            id,
-            name
-          ),
-          departments (
-            id,
-            name
-          )
-        `)
-        .order("created_at", { ascending: false });
+      // Force refresh dengan optimizer
+      const itemsData = await forceRefreshItems(
+        isOwnerOnly && userDepartment ? 
+          (await supabase.from('departments').select('id').eq('name', userDepartment).single()).data?.id 
+          : undefined
+      );
 
-      // Filter by department jika user owner-only
-      if (isOwnerOnly && userDepartment) {
-        const { data: deptData } = await supabase
-          .from('departments')
-          .select('id')
-          .eq('name', userDepartment)
-          .single();
-          
-        if (deptData) {
-          query = query.eq('department_id', deptData.id);
-        }
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error refreshing:', error);
-        toast.error("Gagal memuat ulang data");
-      } else {
-        setItems(data || []);
+      if (itemsData) {
+        setItems(itemsData as Item[]);
         toast.success("Data berhasil dimuat ulang");
       }
     } catch (error) {
@@ -126,7 +101,7 @@ export default function ManageInventory() {
     }
   }, [hasRole, getUserDepartment, canManageInventory, userDepartment, isOwnerOnly]);
 
-  // Effect untuk load data setelah role tersedia
+  // Effect untuk load data setelah role tersedia - dengan optimizer
   useEffect(() => {
     let isMounted = true;
     
@@ -134,54 +109,23 @@ export default function ManageInventory() {
       try {
         setLoading(true);
         
-        // Fetch items
-        let query = supabase
-          .from("items")
-          .select(`
-            *,
-            categories (
-              id,
-              name
-            ),
-            departments (
-              id,
-              name
-            )
-          `)
-          .order("created_at", { ascending: false });
-
-        // Filter by department jika user owner-only
-        if (isOwnerOnly && userDepartment) {
-          const { data: deptData } = await supabase
-            .from('departments')
-            .select('id')
-            .eq('name', userDepartment)
-            .single();
-            
-          if (deptData) {
-            query = query.eq('department_id', deptData.id);
-          }
-        }
-
-        const [itemsResult, categoriesResult] = await Promise.all([
-          query,
-          supabase.from("categories").select("id, name").order("name")
+        // Gunakan optimizer untuk fetch data
+        const [itemsData, categoriesData] = await Promise.all([
+          getOptimizedItems(
+            isOwnerOnly && userDepartment ? 
+              (await supabase.from('departments').select('id').eq('name', userDepartment).single()).data?.id 
+              : undefined
+          ),
+          getOptimizedCategories()
         ]);
 
         if (isMounted) {
-          if (itemsResult.error) {
-            console.error('Items error:', itemsResult.error);
-            toast.error("Gagal mengambil data inventaris");
-          } else {
-            setItems(itemsResult.data || []);
+          if (itemsData) {
+            setItems(itemsData as Item[]);
           }
-
-          if (categoriesResult.error) {
-            console.error('Categories error:', categoriesResult.error);
-          } else {
-            setCategories(categoriesResult.data || []);
+          if (categoriesData) {
+            setCategories(categoriesData as Category[]);
           }
-          
           setLoading(false);
         }
       } catch (error) {
@@ -204,6 +148,21 @@ export default function ManageInventory() {
     if (!confirm("Apakah Anda yakin ingin menghapus barang ini?")) return;
     
     try {
+      // Check if item is referenced in request_items
+      const { count: requestItemsCount } = await supabase
+        .from("request_items")
+        .select("*", { count: "exact", head: true })
+        .eq("item_id", itemId);
+
+      if (requestItemsCount && requestItemsCount > 0) {
+        toast.error(
+          "Tidak dapat menghapus barang ini karena sedang digunakan dalam permintaan peminjaman. " +
+          "Silakan batalkan atau selesaikan permintaan terlebih dahulu."
+        );
+        return;
+      }
+
+      // If no references, proceed with deletion
       const { error } = await supabase
         .from("items")
         .delete()
@@ -215,7 +174,15 @@ export default function ManageInventory() {
       refreshData(); // Use refreshData instead of fetchItems
     } catch (error) {
       console.error("Error deleting item:", error);
-      toast.error("Gagal menghapus barang");
+      
+      if (error.code === '23503') {
+        toast.error(
+          "Tidak dapat menghapus barang ini karena masih terkait dengan data lain. " +
+          "Pastikan barang tidak sedang dipinjam atau dalam permintaan aktif."
+        );
+      } else {
+        toast.error("Gagal menghapus barang");
+      }
     }
   };
 
@@ -251,11 +218,28 @@ export default function ManageInventory() {
     <Card className="neu-raised border-0 group hover:neu-flat transition-all duration-200">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-base font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
-              {item.name}
-            </CardTitle>
-            <p className="text-xs text-gray-500 mt-1">Kode: {item.code}</p>
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            {/* Mini square preview image */}
+            <div className="w-12 h-12 neu-sunken rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+              {item.image_url ? (
+                <img 
+                  src={item.image_url} 
+                  alt={item.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Package className="h-5 w-5 text-gray-400" />
+                </div>
+              )}
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-base font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+                {item.name}
+              </CardTitle>
+              <p className="text-xs text-gray-500 mt-1">Kode: {item.code}</p>
+            </div>
           </div>
           <div className="flex gap-1 ml-2">
             <Button
@@ -263,6 +247,7 @@ export default function ManageInventory() {
               variant="ghost"
               onClick={() => navigate(`/edit-item/${item.id}`)}
               className="p-2 neu-button-raised hover:neu-button-pressed bg-blue-100 text-blue-600 hover:bg-blue-200"
+              title={`Edit ${item.name}`}
             >
               <Edit className="h-4 w-4" />
             </Button>
@@ -314,17 +299,34 @@ export default function ManageInventory() {
 
   const ItemRow = ({ item }: { item: Item }) => (
     <div className="flex items-center justify-between p-4 hover:bg-blue-50/50 transition-colors border-b border-gray-100 last:border-b-0">
-      <div className="flex-1 space-y-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <h3 className="font-medium text-gray-900 truncate">{item.name}</h3>
-          <span className="text-xs text-gray-500">({item.code})</span>
-          {getStatusBadge(item.status)}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        {/* Mini square preview image for list view */}
+        <div className="w-10 h-10 neu-sunken rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+          {item.image_url ? (
+            <img 
+              src={item.image_url} 
+              alt={item.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Package className="h-4 w-4 text-gray-400" />
+            </div>
+          )}
         </div>
-        <p className="text-sm text-gray-600 line-clamp-1">{item.description}</p>
-        <div className="flex gap-2 text-xs text-gray-500">
-          {item.categories && <span>{item.categories.name}</span>}
-          {item.departments && <span>• {item.departments.name}</span>}
-          {item.location && <span>• {item.location}</span>}
+        
+        <div className="flex-1 space-y-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-gray-900 truncate">{item.name}</h3>
+            <span className="text-xs text-gray-500">({item.code})</span>
+            {getStatusBadge(item.status)}
+          </div>
+          <p className="text-sm text-gray-600 line-clamp-1">{item.description}</p>
+          <div className="flex gap-2 text-xs text-gray-500">
+            {item.categories && <span>{item.categories.name}</span>}
+            {item.departments && <span>• {item.departments.name}</span>}
+            {item.location && <span>• {item.location}</span>}
+          </div>
         </div>
       </div>
       <div className="flex items-center gap-3 ml-4">
@@ -338,6 +340,7 @@ export default function ManageInventory() {
             variant="ghost"
             onClick={() => navigate(`/edit-item/${item.id}`)}
             className="p-2 neu-button-raised hover:neu-button-pressed bg-blue-100 text-blue-600 hover:bg-blue-200"
+            title={`Edit ${item.name}`}
           >
             <Edit className="h-4 w-4" />
           </Button>
