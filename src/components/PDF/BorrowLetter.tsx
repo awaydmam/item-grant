@@ -69,8 +69,8 @@ export const BorrowLetter: React.FC<BorrowLetterProps> = ({ data }) => {
       <Page size="A4" style={styles.page}>
         <View style={styles.container}>
           <LetterHeader 
-            schoolName={data.schoolName || "SMK Negeri 1 Bandung"}
-            schoolAddress={data.schoolAddress || "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung"}
+            schoolName={data.schoolName || "Darul Ma'arif"}
+            schoolAddress={data.schoolAddress || "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu"}
             letterDate={currentDate}
             letterNumber={data.request.letter_number || `SPB/${new Date().getFullYear()}/${String(Date.now()).slice(-6)}`}
           />

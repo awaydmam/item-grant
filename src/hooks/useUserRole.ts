@@ -6,13 +6,20 @@ interface UserRole {
   department: string;
 }
 
+interface Department {
+  id: string;
+  name: string;
+}
+
 export const useUserRole = () => {
   const [roles, setRoles] = useState<UserRole[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUserRoles();
+    fetchDepartments();
   }, []);
 
   const fetchUserRoles = async () => {
@@ -38,6 +45,20 @@ export const useUserRole = () => {
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      const { data: departmentsData, error } = await supabase
+        .from('departments')
+        .select('id, name');
+
+      if (error) throw error;
+
+      setDepartments(departmentsData || []);
+    } catch (err) {
+      console.error('Error fetching departments:', err);
+    }
+  };
+
   const hasRole = (role: string): boolean => {
     return roles.some(r => r.role === role);
   };
@@ -50,6 +71,28 @@ export const useUserRole = () => {
   const getUserDepartment = (): string | null => {
     const ownerRole = roles.find(r => r.role === 'owner');
     return ownerRole?.department || null;
+  };
+
+  const getUserDepartmentId = (): string | null => {
+    const ownerRole = roles.find(r => r.role === 'owner');
+    console.log('🔍 getUserDepartmentId - Owner role found:', ownerRole);
+    
+    if (!ownerRole?.department) {
+      console.log('🔍 getUserDepartmentId - No owner role or department found');
+      return null;
+    }
+    
+    console.log('🔍 getUserDepartmentId - Looking for department name:', ownerRole.department);
+    console.log('🔍 getUserDepartmentId - Available departments:', departments);
+    
+    // Cari department ID berdasarkan nama department
+    const department = departments.find(d => d.name === ownerRole.department);
+    console.log('🔍 getUserDepartmentId - Found department object:', department);
+    
+    const result = department?.id || null;
+    console.log('🔍 getUserDepartmentId - Returning ID:', result);
+    
+    return result;
   };
 
   const canManageInventory = (): boolean => {
@@ -73,6 +116,7 @@ export const useUserRole = () => {
 
   return {
     roles,
+    departments,
     loading,
     error,
     hasRole,
@@ -81,6 +125,7 @@ export const useUserRole = () => {
     isHeadmaster,
     isBorrower,
     getUserDepartment,
+    getUserDepartmentId,
     canManageInventory,
     canApproveRequests,
     getRoleLabels,

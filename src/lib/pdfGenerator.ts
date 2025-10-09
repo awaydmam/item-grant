@@ -50,8 +50,8 @@ export const generatePDF = async (data: PDFData): Promise<void> => {
   let yPosition = 20;
   
   // Default values
-  const schoolName = data.schoolName || "SMK NEGERI 1 KOTA BEKASI";
-  const schoolAddress = data.schoolAddress || "Jl. Bintara VIII No.2, Bintara, Kec. Bekasi Barat\nKota Bekasi, Jawa Barat 17134\nTelp: (021) 8844567";
+  const schoolName = data.schoolName || "Darul Ma'arif";
+  const schoolAddress = data.schoolAddress || "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu\nTelp: 082219699610";
   
   // ===== HEADER & KOP SURAT =====
   
@@ -62,7 +62,7 @@ export const generatePDF = async (data: PDFData): Promise<void> => {
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(66, 139, 202);
-  doc.text("SMK", margin + 10, yPosition + 13, { align: 'center' });
+  doc.text("Ponpes", margin + 10, yPosition + 13, { align: 'center' });
   
   // School name & address
   doc.setTextColor(0, 0, 0);

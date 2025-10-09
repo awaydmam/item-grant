@@ -231,8 +231,8 @@ export default function OwnerInbox() {
         request: previewRequest,
         ownerName: ownerProfile?.full_name,
         headmasterName,
-        schoolName: "SMK Negeri 1 Bandung",
-        schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+        schoolName: "Darul Ma'arif",
+        schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
         letterType: 'internal' as const
       };
     } catch (error) {
@@ -472,8 +472,8 @@ export default function OwnerInbox() {
                       request: previewRequest,
                       ownerName: "Pengelola Inventaris", // akan diupdate dengan data real
                       headmasterName: undefined,
-                      schoolName: "SMK Negeri 1 Bandung",
-                      schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+                      schoolName: "Darul Ma'arif",
+                      schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
                       letterType: 'internal'
                     }}
                   />
@@ -498,8 +498,8 @@ export default function OwnerInbox() {
                         request: previewRequest,
                         ownerName: "Pengelola Inventaris",
                         headmasterName: undefined,
-                        schoolName: "SMK Negeri 1 Bandung",
-                        schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+                        schoolName: "Darul Ma'arif",
+                        schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
                         letterType: 'internal'
                       }}
                     />

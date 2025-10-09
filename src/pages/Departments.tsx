@@ -15,6 +15,7 @@ interface Department {
   item_count?: number;
   available_count?: number;
   borrowed_count?: number;
+  jenis_count?: number; // jumlah distinct jenis item
 }
 
 export default function Departments() {
@@ -59,22 +60,29 @@ export default function Departments() {
       if (deptData && itemsData) {
         const departmentsWithCounts = deptData.map(dept => {
           const deptItems = itemsData.filter(item => item.department_id === dept.id);
-          const totalCount = deptItems.length;
           
-          let totalAvailableQuantity = 0;
-          let totalBorrowedQuantity = 0;
+          // totalJenis = jumlah distinct item (jenis barang)
+          const totalJenis = deptItems.length;
+          // totalUnit = jumlah seluruh unit (quantity) akumulatif
+          const totalUnit = deptItems.reduce((sum, itm) => sum + (itm.quantity || 0), 0);
+          
+          let totalAvailableQuantity = 0; // total unit tersedia
+            let totalBorrowedQuantity = 0; // total unit sedang dipinjam
           
           deptItems.forEach(item => {
             const borrowed = borrowedMap.get(item.id) || 0;
             const available = Math.max(0, item.quantity - borrowed);
-            
             totalAvailableQuantity += available;
             totalBorrowedQuantity += borrowed;
           });
 
           return {
             ...dept,
-            item_count: totalCount,
+            // Ubah: item_count sekarang mewakili total unit agar label "Total" & "Tersedia" konsisten basisnya
+            item_count: totalUnit,
+            // Simpan juga meta bila nanti ingin tampilkan jenis
+            // @ts-expect-error: properti tambahan untuk kebutuhan tampilan (jumlah jenis), tidak ditambahkan ke interface agar backward compatible
+            jenis_count: totalJenis,
             available_count: totalAvailableQuantity,
             borrowed_count: totalBorrowedQuantity
           };

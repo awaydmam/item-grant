@@ -328,13 +328,36 @@ export default function Inventory() {
 
                           {/* Info Section */}
                           <div className="space-y-1">
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                              <span className="font-medium">Total:</span> {item.quantity || item.available_quantity} • 
-                              <span className="font-medium"> Tersedia:</span> {item.available_quantity}
-                              {item.borrowed_quantity && item.borrowed_quantity > 0 && (
-                                <span> • <span className="font-medium">Dipinjam:</span> {item.borrowed_quantity}</span>
-                              )}
-                            </p>
+                            {(() => {
+                              // Normalisasi & sanity check
+                              const rawQuantity = typeof item.quantity === 'number' ? item.quantity : Number(item.quantity) || 0;
+                              const borrowed = typeof item.borrowed_quantity === 'number'
+                                ? item.borrowed_quantity
+                                : Math.max(0, rawQuantity - (item.available_quantity ?? 0));
+                              const available = Math.max(0, rawQuantity - borrowed);
+
+                              // Deteksi anomali (misal faktor 10)
+                              if (rawQuantity > 0 && available > rawQuantity) {
+                                console.warn('[Inventory Sanity Warning]', {
+                                  id: item.id,
+                                  name: item.name,
+                                  rawQuantity,
+                                  availableClient: item.available_quantity,
+                                  recomputedAvailable: available,
+                                  borrowed
+                                });
+                              }
+
+                              return (
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                  <span className="font-medium">Total:</span> {rawQuantity}
+                                  {' • '}<span className="font-medium">Tersedia:</span> {available}
+                                  {borrowed > 0 && (
+                                    <span>{' • '}<span className="font-medium">Dipinjam:</span> {borrowed}</span>
+                                  )}
+                                </p>
+                              );
+                            })()}
                             {item.departments?.name && (
                               <p className="text-xs text-muted-foreground">
                                 Pemilik: {item.departments.name}

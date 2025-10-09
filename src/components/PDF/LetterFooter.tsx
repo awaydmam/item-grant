@@ -69,7 +69,7 @@ export const LetterFooter: React.FC<LetterFooterProps> = ({
       </Text>
       
       <Text style={styles.dateLocation}>
-        Bandung, {createdDate}
+       Kaplongan, {createdDate}
       </Text>
       
       {letterType === 'official' && headmasterName ? (

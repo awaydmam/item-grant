@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
@@ -35,6 +36,7 @@ import { getOptimizedCategories, getOptimizedDepartments, clearRequestCache } fr
 interface Category {
   id: string;
   name: string;
+  department?: string;
 }
 
 interface Department {
@@ -71,7 +73,7 @@ export default function AddItem() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
-  const { hasRole, getUserDepartment, loading: roleLoading } = useUserRole();
+  const { hasRole, getUserDepartment, getUserDepartmentId, loading: roleLoading } = useUserRole();
 
   const [isOwner, setIsOwner] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -93,6 +95,17 @@ export default function AddItem() {
     image_url: "",
     status: "available" as const
   });
+
+  // Debug formData changes
+  useEffect(() => {
+    console.log('🔄 FormData changed:', formData);
+    if (formData.department_id) {
+      console.log('🔄 Department ID:', formData.department_id, 'Type:', typeof formData.department_id);
+      // Check if department_id is a valid UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      console.log('🔄 Is valid UUID:', uuidRegex.test(formData.department_id));
+    }
+  }, [formData]);
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
@@ -120,22 +133,44 @@ export default function AddItem() {
     try {
       setAddingCategory(true);
       
-      // Periksa apakah kategori sudah ada
-      const { data: existingCategory } = await supabase
+      // Get user's department for department-specific categories
+      const userDepartment = getUserDepartment();
+      
+      // Periksa apakah kategori sudah ada di departemen yang sama
+      let query = supabase
         .from("categories")
         .select("id")
-        .eq("name", newCategory.trim())
-        .single();
+        .eq("name", newCategory.trim());
+      
+      // If user is owner, check for department-specific categories
+      if (hasRole('owner') && userDepartment) {
+        query = query.or(`department.is.null,department.eq."${userDepartment}"`);
+      }
+      
+      const { data: existingCategory, error: checkError } = await query.maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
 
       if (existingCategory) {
         toast.error("Kategori sudah ada");
         return;
       }
 
+      // Prepare category data
+      const categoryData: { name: string; department?: string } = { name: newCategory.trim() };
+      
+      // If user is owner, add department to make it department-specific
+      if (hasRole('owner') && userDepartment) {
+        categoryData.department = userDepartment;
+      }
+      // If admin, create global category (no department)
+
       // Tambah kategori baru
       const { data: newCategoryData, error } = await supabase
         .from("categories")
-        .insert([{ name: newCategory.trim() }])
+        .insert([categoryData])
         .select()
         .single();
 
@@ -216,6 +251,26 @@ export default function AddItem() {
     };
   }, []);
 
+  // Helper untuk memastikan department_id siap (owner)
+  const ensureOwnerDepartment = useCallback((depts: Department[]) => {
+    if (!isOwner || isAdmin) return;
+    if (formData.department_id) return; // sudah diset
+    const userDeptName = getUserDepartment();
+    if (!userDeptName) return;
+    const dept = depts.find(d => d.name === userDeptName);
+    if (dept && dept.id) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(dept.id)) {
+        console.log('⚙️ ensureOwnerDepartment: setting department_id early:', dept.id);
+        setFormData(prev => ({ ...prev, department_id: dept.id }));
+      } else {
+        console.warn('⚙️ ensureOwnerDepartment: found dept but invalid UUID id:', dept.id);
+      }
+    } else {
+      console.warn('⚙️ ensureOwnerDepartment: department not found for name:', userDeptName);
+    }
+  }, [isOwner, isAdmin, formData.department_id, getUserDepartment]);
+
   // Main data loading effect - simplified dependencies
   useEffect(() => {
     if (roleLoading || loadedRef.current) return;
@@ -235,10 +290,18 @@ export default function AddItem() {
           getOptimizedDepartments()
         ]);
         
+        console.log('📊 Loaded categories:', categoriesData);
+        console.log('📊 Loaded departments:', departmentsData);
+        
         if (!isMounted) return;
         
         setCategories(categoriesData as Category[]);
         setDepartments(departmentsData as Department[]);
+
+        // Early ensure dept for owner (new item)
+        if (!isEditMode) {
+          ensureOwnerDepartment(departmentsData as Department[]);
+        }
 
         // Handle edit mode
         if (isEditMode && id) {
@@ -292,17 +355,61 @@ export default function AddItem() {
         clearTimeout(loadTimeoutRef.current);
       }
     };
-  }, [id, isEditMode, roleLoading, loadItemData, loadCommonData]);
+  }, [id, isEditMode, roleLoading, loadItemData, loadCommonData, ensureOwnerDepartment]);
 
   // Separate effect for handling new item department assignment
   useEffect(() => {
-    if (!roleLoading && !isEditMode && isOwner && !isAdmin && departments.length > 0) {
+    console.log('🏢 Department assignment effect running:', {
+      roleLoading,
+      isEditMode, 
+      isOwner,
+      isAdmin,
+      departmentsLength: departments.length,
+      currentDepartmentId: formData.department_id
+    });
+    
+    if (!roleLoading && !isEditMode && isOwner && !isAdmin && departments.length > 0 && !formData.department_id) {
       const userDeptName = getUserDepartment();
+      console.log('🏢 User department name from getUserDepartment():', userDeptName);
+      
       if (userDeptName) {
+        // Manual lookup menggunakan departments dari AddItem component
+        console.log('🏢 Available departments from AddItem:', departments.map(d => ({
+          id: d.id, 
+          name: d.name,
+          idType: typeof d.id,
+          nameType: typeof d.name
+        })));
+        
         const dept = departments.find(d => d.name === userDeptName);
-        if (dept && !formData.department_id) {
-          setFormData(prev => ({ ...prev, department_id: dept.id }));
+        console.log('🏢 Found department via AddItem departments:', dept);
+        
+        if (dept && dept.id) {
+          // Validate UUID format
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (uuidRegex.test(dept.id)) {
+            console.log('🏢 ✅ Valid UUID found, setting department_id:', dept.id);
+            setFormData(prev => {
+              const newData = { ...prev, department_id: dept.id };
+              console.log('🏢 ✅ FormData after department auto-set:', newData);
+              return newData;
+            });
+          } else {
+            console.error('🏢 ❌ Found department but ID is not valid UUID:', dept.id);
+          }
+        } else {
+          console.error('🏢 ❌ Department not found in AddItem departments array');
+          console.error('🏢 ❌ Looking for name:', userDeptName);
+          console.error('🏢 ❌ Available names:', departments.map(d => d.name));
         }
+      } else {
+        console.log('🏢 ❌ No user department name found from getUserDepartment()');
+      }
+    } else {
+      if (formData.department_id) {
+        console.log('🏢 ⏸️ Department already set, skipping auto-assignment');
+      } else {
+        console.log('🏢 ⏸️ Conditions not met for auto-assignment');
       }
     }
   }, [roleLoading, isEditMode, isOwner, isAdmin, departments, getUserDepartment, formData.department_id]);
@@ -330,13 +437,84 @@ export default function AddItem() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('🚀 Submit started with formData:', formData);
+    
     if (!validateForm()) {
       toast.error("Mohon lengkapi semua field yang diperlukan");
       return;
     }
     
+    // Additional validation for department_id UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    console.log('🔧 Validating department_id:', formData.department_id);
+    console.log('🔧 Department_id type:', typeof formData.department_id);
+    console.log('🔧 UUID regex test result:', uuidRegex.test(formData.department_id));
+    
+    if (!uuidRegex.test(formData.department_id)) {
+      console.error('🚨 Invalid department_id format:', formData.department_id);
+      console.error('🚨 Type:', typeof formData.department_id);
+      console.error('🚨 This is likely the source of the MEDIA error');
+      
+      // Try to fix it if user is owner
+      if (isOwner && !isAdmin && departments.length > 0) {
+        console.log('🔧 Attempting to fix invalid UUID...');
+        const userDeptName = getUserDepartment();
+        console.log('🔧 User department name:', userDeptName);
+        
+        // Manual lookup using AddItem departments
+        const dept = departments.find(d => d.name === userDeptName);
+        console.log('🔧 Found department via manual lookup:', dept);
+        
+        if (dept && dept.id && uuidRegex.test(dept.id)) {
+          console.log('🔧 Attempting to fix department_id with manual lookup:', dept.id);
+          setFormData(prev => ({ ...prev, department_id: dept.id }));
+          toast.error('Format departemen diperbaiki, silakan coba lagi.');
+          return;
+        } else {
+          console.error('🔧 ❌ Manual lookup failed or invalid UUID');
+          // LAST RESORT: Query langsung ke Supabase untuk ambil ID departemen dari nama
+          if (userDeptName) {
+            try {
+              console.log('🔧 🔎 Fallback querying departments table for name:', userDeptName);
+              const { data: deptRow, error: deptErr } = await supabase
+                .from('departments')
+                .select('id, name')
+                .eq('name', userDeptName)
+                .maybeSingle();
+              if (deptErr) {
+                console.error('🔧 ❌ Fallback query error:', deptErr);
+              } else if (deptRow && deptRow.id && uuidRegex.test(deptRow.id)) {
+                console.log('🔧 ✅ Fallback query success, setting department_id:', deptRow.id);
+                setFormData(prev => ({ ...prev, department_id: deptRow.id }));
+                toast.error('Format departemen diperbaiki (fallback), silakan klik simpan lagi.');
+                return;
+              } else {
+                console.error('🔧 ❌ Fallback query did not return valid UUID');
+              }
+            } catch(fallbackErr) {
+              console.error('🔧 ❌ Exception during fallback department fetch:', fallbackErr);
+            }
+          }
+        }
+      }
+      
+      toast.error('Format departemen tidak valid. Silakan refresh halaman.');
+      return;
+    }
+    
     try {
       setSaving(true);
+
+      // Double safety: sebelum operasi DB pastikan department_id valid (owner case)
+      if (isOwner && !isAdmin) {
+        const uuidOk = uuidRegex.test(formData.department_id);
+        if (!uuidOk) {
+          console.log('🛑 Safety check failed: department_id masih invalid sebelum DB operation');
+          toast.error('Departemen belum valid. Coba lagi.');
+          setSaving(false);
+          return;
+        }
+      }
       
       if (isEditMode && id) {
         // Mode Edit - ambil data lama untuk perbandingan
@@ -383,6 +561,42 @@ export default function AddItem() {
           updated_at: new Date().toISOString()
         };
 
+        console.log('Inserting item data:', itemData);
+        console.log('Department ID:', formData.department_id);
+        console.log('All formData:', formData);
+        console.log('Departments available:', departments);
+        
+        // Final validation before insert
+        console.log('🔍 FINAL CHECK BEFORE INSERT:');
+        console.log('🔍 itemData.department_id:', itemData.department_id);
+        console.log('🔍 itemData.category_id:', itemData.category_id);
+        console.log('🔍 department_id type:', typeof itemData.department_id);
+        console.log('🔍 category_id type:', typeof itemData.category_id);
+        
+        // Check if department_id is valid UUID
+        const finalUuidCheck = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const deptUuidValid = finalUuidCheck.test(itemData.department_id);
+        const catUuidValid = finalUuidCheck.test(itemData.category_id);
+        
+        console.log('🔍 Department UUID validation:', deptUuidValid);
+        console.log('🔍 Category UUID validation:', catUuidValid);
+        
+        if (!deptUuidValid) {
+          console.error('🚨 CRITICAL: About to insert invalid department UUID!');
+          console.error('🚨 Department ID:', itemData.department_id);
+          console.error('🚨 Aborting insert to prevent error');
+          toast.error('Error: Format departemen tidak valid');
+          return;
+        }
+        
+        if (!catUuidValid) {
+          console.error('🚨 CRITICAL: About to insert invalid category UUID!');
+          console.error('🚨 Category ID:', itemData.category_id);
+          console.error('🚨 Aborting insert to prevent error');
+          toast.error('Error: Format kategori tidak valid');
+          return;
+        }
+
         const { data: newItem, error } = await supabase
           .from("items")
           .insert([{
@@ -392,7 +606,10 @@ export default function AddItem() {
           .select()
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error("Database error details:", error);
+          throw error;
+        }
 
         // Log pembuatan item baru
         await logItemActivity(
@@ -416,7 +633,15 @@ export default function AddItem() {
   };
 
   const handleInputChange = (field: keyof FormData, value: string | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    console.log(`📝 Form field changed: ${field} = ${value}`);
+    console.log(`📝 Type of value: ${typeof value}`);
+    
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      console.log(`📝 Updated formData:`, newData);
+      return newData;
+    });
+    
     if (errors[field as keyof FormErrors]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
@@ -648,7 +873,19 @@ export default function AddItem() {
                       <SelectContent>
                         {categories.map(category => (
                           <SelectItem key={category.id} value={category.id}>
-                            {category.name}
+                            <div className="flex items-center gap-2">
+                              <span>{category.name}</span>
+                              {category.department && (
+                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
+                                  {category.department}
+                                </Badge>
+                              )}
+                              {!category.department && (
+                                <Badge variant="outline" className="text-xs bg-gray-50 text-gray-500 border-gray-200">
+                                  Global
+                                </Badge>
+                              )}
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -674,8 +911,17 @@ export default function AddItem() {
                             </div>
                             Tambah Kategori Baru
                           </DialogTitle>
-                          <DialogDescription className="text-sm">
-                            Tambahkan kategori baru untuk mengelompokkan barang inventaris.
+                          <DialogDescription className="text-sm text-gray-600">
+                            {hasRole('owner') && getUserDepartment() ? (
+                              <>
+                                Kategori akan dibuat khusus untuk departemen <strong>{getUserDepartment()}</strong>. 
+                                Hanya anggota departemen ini yang dapat melihat dan menggunakan kategori ini.
+                              </>
+                            ) : (
+                              <>
+                                Sebagai admin, kategori akan dibuat sebagai kategori global yang dapat digunakan oleh semua departemen.
+                              </>
+                            )}
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">

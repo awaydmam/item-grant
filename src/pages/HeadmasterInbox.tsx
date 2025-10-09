@@ -554,8 +554,8 @@ export default function HeadmasterInbox() {
                       request: previewRequest,
                       ownerName: "Pengelola Inventaris",
                       headmasterName: "Kepala Sekolah", // nanti diambil dari database
-                      schoolName: "SMK Negeri 1 Bandung",
-                      schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+                      schoolName: "Darul Ma'arif",
+                      schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
                       letterType: 'official'
                     }}
                   />
@@ -580,8 +580,8 @@ export default function HeadmasterInbox() {
                         request: previewRequest,
                         ownerName: "Pengelola Inventaris",
                         headmasterName: "Kepala Sekolah",
-                        schoolName: "SMK Negeri 1 Bandung",
-                        schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+                        schoolName: "Darul Ma'arif",
+                        schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
                         letterType: 'official'
                       }}
                     />

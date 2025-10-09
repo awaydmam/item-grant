@@ -281,8 +281,8 @@ export default function RequestDetail() {
           }))
         },
         headmasterName,
-        schoolName: "SMK NEGERI 1 KOTA BEKASI",
-        schoolAddress: "Jl. Bintara VIII No.2, Bintara, Kec. Bekasi Barat\nKota Bekasi, Jawa Barat 17134\nTelp: (021) 8844567 | Email: smkn1kotabekasi@gmail.com"
+        schoolName: "Darul Ma'arif",
+        schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu\nTelp: 082219699610 | Email: pontrendarulmaarif@gmail.com"
       };
 
       await generatePDF(pdfData);
@@ -624,8 +624,8 @@ export default function RequestDetail() {
                       },
                       ownerName: "Pengelola Inventaris",
                       headmasterName: "Kepala Sekolah",
-                      schoolName: "SMK Negeri 1 Bandung",
-                      schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+                      schoolName: "Darul Ma'arif",
+                      schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
                       letterType: 'official'
                     }}
                   />
@@ -660,8 +660,8 @@ export default function RequestDetail() {
                         },
                         ownerName: "Pengelola Inventaris",
                         headmasterName: "Kepala Sekolah",
-                        schoolName: "SMK Negeri 1 Bandung",
-                        schoolAddress: "Jl. Wastukancana No.3, Babakan Ciamis, Kec. Sumur Bandung, Kota Bandung",
+                        schoolName: "Darul Ma'arif",
+                        schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
                         letterType: 'official'
                       }}
                     />
