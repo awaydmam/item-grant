@@ -42,6 +42,7 @@ export default function HeadmasterInbox() {
     pic_contact: string;
     owner_notes?: string;
     owner_reviewed_at?: string;
+    created_at?: string;
     request_items?: RequestItem[];
     borrower?: {
       full_name: string;

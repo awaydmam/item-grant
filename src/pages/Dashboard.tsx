@@ -141,97 +141,7 @@ export default function Dashboard() {
     return () => { clearInterval(interval); supabase.removeChannel(channel); };
   }, [fetchStats, fetchUserProfile]);
 
-  const fetchStats = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: allItems } = await supabase
-      .from("items")
-      .select("id, quantity");
-
-    const { data: activeRequests } = await supabase
-      .from("borrow_requests")
-      .select(`
-        request_items (
-          item_id,
-          quantity
-        )
-      `)
-      .in("status", ["approved", "active"]);
-
-    const borrowedMap = new Map<string, number>();
-    activeRequests?.forEach(request => {
-      request.request_items?.forEach((item: { item_id: string; quantity: number }) => {
-        const current = borrowedMap.get(item.item_id) || 0;
-        borrowedMap.set(item.item_id, current + item.quantity);
-      });
-    });
-
-    let totalItems = 0;
-    let availableItems = 0;
-    let borrowedItems = 0;
-    let unavailableItems = 0;
-
-    allItems?.forEach(item => {
-      const borrowed = borrowedMap.get(item.id) || 0;
-      const available = Math.max(0, item.quantity - borrowed);
-      totalItems++;
-      if (available > 0) availableItems++; else unavailableItems++;
-      if (borrowed > 0) borrowedItems++;
-    });
-
-    const { count: requestsCount } = await supabase
-      .from("borrow_requests")
-      .select("*", { count: "exact", head: true })
-      .eq("borrower_id", user.id);
-
-    // Pending approvals filtered sesuai role & departemen
-    let pendingApprovals = 0;
-    if (userRoles.includes('owner')) {
-      const { data: ownerRole } = await supabase
-        .from('user_roles')
-        .select('department')
-        .eq('user_id', user.id)
-        .eq('role', 'owner')
-        .maybeSingle();
-      const ownerDept = ownerRole?.department;
-      if (ownerDept) {
-        // (Optimisasi ke depan: tambahkan kolom department ke borrow_requests untuk count cepat)
-        const { data: ownerPendRaw } = await supabase
-          .from('borrow_requests')
-          .select('id, request_items(item:items(department:departments(name)))')
-          .eq('status', 'pending_owner');
-        interface PendingOwnerItem2 { item?: { department?: { name?: string } } }
-        interface PendingOwnerReq2 { request_items?: PendingOwnerItem2[] }
-        const ownerFiltered = (ownerPendRaw as PendingOwnerReq2[] || []).filter(r =>
-          r.request_items?.some((ri: PendingOwnerItem2) => ri.item?.department?.name === ownerDept)
-        );
-        pendingApprovals += ownerFiltered.length;
-      }
-    }
-    if (userRoles.includes('headmaster')) {
-      const { count: headPending } = await supabase
-        .from('borrow_requests')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pending_headmaster');
-      pendingApprovals += headPending || 0;
-    }
-
-    const { count: activeCount } = await supabase
-      .from("borrow_requests")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "active");
-
-    setStats({
-      totalItems,
-      availableItems,
-      borrowedItems,
-      unavailableItems,
-      myRequests: requestsCount || 0,
-      pendingApprovals,
-      activeLoans: activeCount || 0,
-    });
-  }, [userRoles]);
+  // removed duplicate fetchStats definition
 
   return (
     <div className="min-h-screen bg-background pb-16">
@@ -247,7 +157,7 @@ export default function Dashboard() {
               <p className="text-xs text-muted-foreground">{userProfile.unit}</p>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout} className="neu-flat">
+          <Button variant="outline" size="sm" onClick={async () => { await supabase.auth.signOut(); navigate('/auth'); }} className="neu-flat">
             <LogOut className="h-4 w-4 mr-2" /> Logout
           </Button>
         </div>
@@ -389,7 +299,7 @@ export default function Dashboard() {
         <div>
           <h2 className="text-lg font-semibold mb-4">Aksi Cepat</h2>
           <div className="grid grid-cols-1 gap-3">
-            {quickActions.map(action => (
+            {([{ title: 'Inventaris', link: '/inventory', description: 'Lihat dan pilih alat', icon: Package, color: 'text-primary' }] as const).map(action => (
               <Link key={action.title} to={action.link}>
                 <Card className="neu-flat hover:neu-raised transition-all">
                   <CardContent className="py-4">

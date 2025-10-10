@@ -24,7 +24,7 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [userRoles, setUserRoles] = useState<string[]>([]);
-  const [profile, setProfile] = useState<{full_name?: string; avatar_url?: string} | null>(null);
+  const [profile, setProfile] = useState<{full_name?: string; avatar_url?: string; unit?: string} | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 

@@ -100,12 +100,12 @@ export default function Realtime() {
         .select("*", { count: "exact", head: true })
         .gte("created_at", today.toISOString());
 
-      if (activeData) setActiveLoans(activeData);
-      if (recentData) setRecentActivities(recentData);
+      if (activeData) setActiveLoans(activeData as any);
+      if (recentData) setRecentActivities(recentData as any);
       // Hitung item/alat paling sering muncul (sederhana) dari activeData
       const freqMap = new Map<string, number>();
-      activeData?.forEach((req: LoanEntity) => {
-        req.request_items?.forEach((ri: RequestItemEntity) => {
+      (activeData as any[])?.forEach((req: any) => {
+        req.request_items?.forEach((ri: any) => {
           const key = ri.item?.name || 'Alat';
           freqMap.set(key, (freqMap.get(key) || 0) + ri.quantity);
         });

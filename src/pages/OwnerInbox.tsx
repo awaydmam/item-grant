@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { toast } from "sonner";
-import { Inbox, CheckCircle, XCircle, Edit3, Calendar, User, FileText, Download, Eye, FilePreview } from "lucide-react";
+import { Inbox, CheckCircle, XCircle, Edit3, Calendar, User, FileText, Download, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import {
@@ -32,9 +32,10 @@ export default function OwnerInbox() {
     purpose: string;
     start_date: string;
     end_date: string;
-    location_usage?: string;
+    location_usage: string;
     pic_name: string;
     pic_contact: string;
+    created_at: string;
     request_items?: RequestItem[];
     borrower?: { full_name: string; unit: string; phone?: string };
     owner_reviewer?: { full_name: string };

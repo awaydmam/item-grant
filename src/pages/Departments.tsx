@@ -81,7 +81,7 @@ export default function Departments() {
             // Ubah: item_count sekarang mewakili total unit agar label "Total" & "Tersedia" konsisten basisnya
             item_count: totalUnit,
             // Simpan juga meta bila nanti ingin tampilkan jenis
-            // @ts-expect-error: properti tambahan untuk kebutuhan tampilan (jumlah jenis), tidak ditambahkan ke interface agar backward compatible
+            // properti tambahan untuk kebutuhan tampilan (jumlah jenis), tidak ditambahkan ke interface agar backward compatible
             jenis_count: totalJenis,
             available_count: totalAvailableQuantity,
             borrowed_count: totalBorrowedQuantity
