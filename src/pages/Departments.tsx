@@ -21,7 +21,12 @@ interface Department {
 export default function Departments() {
   const navigate = useNavigate();
   const [departments, setDepartments] = useState<Department[]>([]);
+  // userDepartment dipakai legacy untuk highlight satu departemen (fallback)
   const [userDepartment, setUserDepartment] = useState<string | null>(null);
+  // ownerDepartments: daftar departemen yang dimiliki user (role owner)
+  const [ownerDepartments, setOwnerDepartments] = useState<string[]>([]);
+  const [isOwner, setIsOwner] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const { getTotalItems } = useCart();
 
@@ -78,21 +83,23 @@ export default function Departments() {
 
           return {
             ...dept,
-            // Ubah: item_count sekarang mewakili total unit agar label "Total" & "Tersedia" konsisten basisnya
+            // item_count sekarang mewakili total unit agar label "Total" & "Tersedia" konsisten
             item_count: totalUnit,
-            // Simpan juga meta bila nanti ingin tampilkan jenis
-            // @ts-expect-error: properti tambahan untuk kebutuhan tampilan (jumlah jenis), tidak ditambahkan ke interface agar backward compatible
+            // properti tambahan (jumlah jenis) untuk tampilan opsional
             jenis_count: totalJenis,
             available_count: totalAvailableQuantity,
             borrowed_count: totalBorrowedQuantity
-          };
+          } as Department;
         });
         
         // Sort: user's department first, then alphabetically
+        const highlight = ownerDepartments.length > 0 ? ownerDepartments : (userDepartment ? [userDepartment] : []);
         const sorted = departmentsWithCounts.sort((a, b) => {
-          if (userDepartment) {
-            if (a.name === userDepartment && b.name !== userDepartment) return -1;
-            if (b.name === userDepartment && a.name !== userDepartment) return 1;
+          if (highlight.length) {
+            const aHighlighted = highlight.includes(a.name);
+            const bHighlighted = highlight.includes(b.name);
+            if (aHighlighted && !bHighlighted) return -1;
+            if (bHighlighted && !aHighlighted) return 1;
           }
           return a.name.localeCompare(b.name);
         });
@@ -104,10 +111,10 @@ export default function Departments() {
     } finally {
       setLoading(false);
     }
-  }, [userDepartment]);
+  }, [userDepartment, ownerDepartments]);
 
   useEffect(() => {
-    fetchUserProfile();
+    fetchUserContext();
   }, []);
 
   useEffect(() => {
@@ -116,18 +123,26 @@ export default function Departments() {
     }
   }, [userDepartment, fetchDepartments]);
 
-  const fetchUserProfile = async () => {
+  const fetchUserContext = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("unit")
-        .eq("id", user.id)
-        .single();
-      
-      if (profile) {
-        setUserDepartment(profile.unit);
-      }
+    if (!user) return;
+
+    const [profileRes, rolesRes] = await Promise.all([
+      supabase.from("profiles").select("unit").eq("id", user.id).single(),
+      supabase.from("user_roles").select("role, department").eq("user_id", user.id)
+    ]);
+
+    const roles = rolesRes.data || [];
+    const ownerDepts = roles.filter(r => r.role === 'owner' && r.department).map(r => r.department as string);
+    setOwnerDepartments(ownerDepts);
+    setIsOwner(ownerDepts.length > 0);
+    setIsAdmin(roles.some(r => r.role === 'admin'));
+
+    // Fallback highlight: jika owner pilih pertama, else gunakan unit profile
+    if (ownerDepts.length > 0) {
+      setUserDepartment(ownerDepts[0]);
+    } else if (profileRes.data?.unit) {
+      setUserDepartment(profileRes.data.unit);
     }
   };
 
@@ -161,9 +176,22 @@ export default function Departments() {
             <p className="text-muted-foreground text-sm leading-relaxed">
               Pilih departemen untuk melihat alat yang tersedia
             </p>
-            {userDepartment && (
+            {/* Badge departemen dinamis berbasis role */}
+            {isOwner && ownerDepartments.length > 0 && (
+              <div className="flex flex-wrap gap-2 justify-center mt-3">
+                {ownerDepartments.map((dept) => (
+                  <Badge key={dept} variant="default" className="px-3 py-1 rounded-full">
+                    Departemen Owner: {dept}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {!isOwner && isAdmin && (
+              <Badge variant="default" className="mt-3 px-3 py-1 rounded-full">Admin: Semua Departemen</Badge>
+            )}
+            {!isOwner && !isAdmin && userDepartment && (
               <Badge variant="default" className="mt-3 px-3 py-1 rounded-full">
-                Department Anda: {userDepartment}
+                Unit Kerja: {userDepartment}
               </Badge>
             )}
           </div>

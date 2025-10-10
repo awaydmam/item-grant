@@ -7,13 +7,13 @@ import { TrendingUp, Calendar, Package, User, Building2, Clock, Activity } from 
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 interface BorrowerProfile {
-  id: string;
+  id?: string; // Bisa tidak dikembalikan oleh select saat tidak diminta
   full_name?: string;
   unit?: string;
 }
 
 interface ItemEntity {
-  id: string;
+  id?: string; // Bisa tidak ikut di-select
   name?: string;
 }
 
@@ -29,6 +29,22 @@ interface LoanEntity {
   purpose?: string;
   borrower?: BorrowerProfile;
   request_items?: RequestItemEntity[];
+  status?: string;
+  created_at?: string;
+}
+
+// Tipe mentah hasil Supabase (subset yang dipakai saja)
+interface RawRequestItem {
+  id: string;
+  quantity: number;
+  item?: { name?: string };
+}
+interface RawBorrowRequest {
+  id: string;
+  end_date: string;
+  purpose?: string;
+  borrower?: BorrowerProfile;
+  request_items?: RawRequestItem[];
   status?: string;
   created_at?: string;
 }
@@ -100,11 +116,25 @@ export default function Realtime() {
         .select("*", { count: "exact", head: true })
         .gte("created_at", today.toISOString());
 
-      if (activeData) setActiveLoans(activeData);
-      if (recentData) setRecentActivities(recentData);
+      const adaptLoan = (raw: RawBorrowRequest): LoanEntity => ({
+        id: raw.id,
+        end_date: raw.end_date,
+        purpose: raw.purpose,
+        borrower: raw.borrower,
+        request_items: raw.request_items?.map((ri: RawRequestItem) => ({
+          id: ri.id,
+          quantity: ri.quantity,
+          item: { name: ri.item?.name }
+        })),
+        status: raw.status,
+        created_at: raw.created_at
+      });
+
+      if (activeData) setActiveLoans(activeData.map(adaptLoan));
+      if (recentData) setRecentActivities(recentData.map(adaptLoan));
       // Hitung item/alat paling sering muncul (sederhana) dari activeData
       const freqMap = new Map<string, number>();
-      activeData?.forEach((req: LoanEntity) => {
+  activeData?.forEach((req: RawBorrowRequest) => {
         req.request_items?.forEach((ri: RequestItemEntity) => {
           const key = ri.item?.name || 'Alat';
           freqMap.set(key, (freqMap.get(key) || 0) + ri.quantity);
@@ -153,13 +183,22 @@ export default function Realtime() {
 
   // Layout baru: dua kolom di desktop
   return (
-  <div className="min-h-screen pb-16 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/40 relative text-[15px] md:text-[16px] leading-relaxed">
-      {/* Watermark / Brand subtle */}
-      <div className="pointer-events-none select-none opacity-[0.04] absolute inset-0 flex items-center justify-center text-[8vw] font-black tracking-tight text-emerald-700">
+  <div className="min-h-screen pb-16 relative text-[15px] md:text-[16px] leading-relaxed">
+      {/* Background image + overlay */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 realtime-bg-image" />
+        {/* Overlay gradasi + tint hijau transparan 35% */}
+        <div className="absolute inset-0 bg-emerald-900/40 mix-blend-multiply" />
+        <div className="absolute inset-0 backdrop-blur-[2px]" />
+        {/* Layer lembut gradient tambahan untuk transisi ke bawah */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/70 via-white/60 to-emerald-100/70" />
+      </div>
+      {/* Watermark / Brand subtle (dipertahankan namun sedikit lebih lembut) */}
+      <div className="pointer-events-none select-none opacity-[0.05] absolute inset-0 flex items-center justify-center text-[8vw] font-black tracking-tight text-emerald-800">
         DARUL MA'ARIF
       </div>
       {/* Header Kecil Kiri Atas */}
-      <div className="sticky top-0 z-30 backdrop-blur-sm bg-white/70 border-b border-emerald-100/60">
+      <div className="sticky top-0 z-30 backdrop-blur-md bg-white/75 border-b border-emerald-100/60 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-emerald-600 flex items-center justify-center shadow-inner text-white font-bold text-sm">
             DA
@@ -210,7 +249,7 @@ export default function Realtime() {
               const itemsShown = loan.request_items?.slice(0, 3) || [];
               const remaining = (loan.request_items?.length || 0) - itemsShown.length;
               return (
-                <div key={loan.id} className="group relative rounded-2xl bg-white/80 backdrop-blur-sm border border-emerald-100 shadow-sm hover:shadow-md transition-all overflow-hidden">
+                <div key={loan.id} className="group relative rounded-2xl bg-white/85 backdrop-blur-md border border-emerald-100/70 shadow-sm hover:shadow-md transition-all overflow-hidden">
                   <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-400 to-emerald-600" />
                   <div className="p-4 sm:p-5 pl-5 sm:pl-6">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -266,7 +305,7 @@ export default function Realtime() {
         {/* Sidebar: Stats kecil + Aktivitas Terbaru */}
         <div className="space-y-5 md:sticky md:top-20 h-fit">
           {/* Stats Mini */}
-          <Card className="bg-white/80 border border-emerald-100 shadow-sm">
+          <Card className="bg-white/85 backdrop-blur-md border border-emerald-100/70 shadow-sm">
             <CardContent className="p-4 space-y-4">
               <div className="flex items-center gap-2 text-emerald-700">
                 <Activity className="h-5 w-5" />
@@ -290,7 +329,7 @@ export default function Realtime() {
           </Card>
 
           {/* Aktivitas Terbaru Mini */}
-            <Card className="bg-white/80 border border-emerald-100 shadow-sm">
+            <Card className="bg-white/85 backdrop-blur-md border border-emerald-100/70 shadow-sm">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-base text-emerald-700 flex items-center gap-2">

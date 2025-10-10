@@ -55,34 +55,49 @@ export default function Cart() {
               </p>
             </div>
             
-            {/* Progress Steps dengan warna yang diperbaiki */}
-            <div className="flex items-center justify-center gap-3 sm:gap-4 mt-6">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold neu-raised shadow-lg">
-                  1
-                </div>
-                <span className="text-xs sm:text-sm font-medium text-blue-600">Pilih Alat</span>
-              </div>
-              <div className="w-6 sm:w-8 h-0.5 bg-blue-600 rounded-full neu-flat"></div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold neu-raised shadow-lg border-2 border-blue-700">
-                  2
-                </div>
-                <span className="text-xs sm:text-sm font-semibold text-blue-700">Review Keranjang</span>
-              </div>
-              <div className="w-6 sm:w-8 h-0.5 bg-gray-300 rounded-full"></div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-sm font-bold neu-sunken">
-                  3
-                </div>
-                <span className="text-xs sm:text-sm text-gray-600">Form Peminjaman</span>
+            {/* Progress Steps dirapikan: alignment presisi & konsistensi spacing */}
+            <div className="mt-6 px-2">
+              <div className="flex items-center justify-center max-w-md mx-auto">
+                {[
+                  { id: 1, label: 'Pilih Alat', state: 'done' },
+                  { id: 2, label: 'Review Keranjang', state: 'current' },
+                  { id: 3, label: 'Form Peminjaman', state: 'upcoming' }
+                ].map((step, index, arr) => {
+                  const isLast = index === arr.length - 1;
+                  const baseCircle = 'w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-200';
+                  const stateStyles = {
+                    done: 'bg-blue-600 text-white shadow-md',
+                    current: 'bg-blue-600 text-white shadow-md border-2 border-blue-700',
+                    upcoming: 'bg-gray-300 text-gray-600 neu-sunken'
+                  } as const;
+                  const labelStyles = {
+                    done: 'text-blue-600 font-medium',
+                    current: 'text-blue-700 font-semibold',
+                    upcoming: 'text-gray-600'
+                  } as const;
+                  const connectorColor = step.state === 'upcoming' ? 'bg-gray-300' : 'bg-blue-600';
+                  return (
+                    <div key={step.id} className="flex items-center">
+                      <div className="flex flex-col items-center">
+                        <div className={baseCircle + ' ' + stateStyles[step.state]}>{step.id}</div>
+                        <span className={`mt-2 text-[11px] sm:text-xs text-center whitespace-nowrap ${labelStyles[step.state]}`}>{step.label}</span>
+                      </div>
+                      {!isLast && (
+                        <div className={`w-10 sm:w-14 h-0.5 mx-2 sm:mx-3 rounded-full ${connectorColor} relative`}>
+                          {/* kecilkan dot dekoratif di tengah (opsional) */}
+                          <div className="absolute left-1/2 -translate-x-1/2 -top-[3px] w-1.5 h-1.5 rounded-full bg-white/60 border border-white/40 backdrop-blur-sm" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container-mobile py-6">
+      <div className="container-mobile py-12">
         {cartItems.length === 0 ? (
           <div className="space-y-6">
             <Card className="neu-flat overflow-hidden">
@@ -179,7 +194,7 @@ export default function Cart() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-lg text-gray-900">Total Item:</span>
-                    <Badge variant="default" className="text-base px-4 py-2 neu-raised">
+                    <Badge variant="default" className="text-base px-4 py-2 ">
                       {getTotalItems()} unit
                     </Badge>
                   </div>

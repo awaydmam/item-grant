@@ -182,23 +182,23 @@ export default function Checkout() {
           </div>
           
           {/* Progress Steps dengan Neumorphism Enhancement */}
-          <div className="flex items-center justify-center gap-3 sm:gap-4">
+          <div className="flex items-center justify-center gap-3 sm:gap-4 pb-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold neu-raised shadow-lg">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-black flex items-center justify-center text-sm font-bold neu-raised shadow-lg">
                 ✓
               </div>
               <span className="text-xs sm:text-sm font-medium text-blue-600">Pilih Alat</span>
             </div>
             <div className="w-6 sm:w-8 h-0.5 bg-blue-600 rounded-full neu-flat"></div>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold neu-raised shadow-lg">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-black flex items-center justify-center text-sm font-bold neu-raised shadow-lg">
                 ✓
               </div>
               <span className="text-xs sm:text-sm font-medium text-blue-600">Review Keranjang</span>
             </div>
             <div className="w-6 sm:w-8 h-0.5 bg-blue-600 rounded-full neu-flat"></div>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold neu-raised shadow-lg border-2 border-blue-700">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-black flex items-center justify-center text-sm font-bold neu-raised shadow-lg border-2 border-blue-700">
                 3
               </div>
               <span className="text-xs sm:text-sm font-semibold text-blue-700">Form Peminjaman</span>
@@ -207,7 +207,7 @@ export default function Checkout() {
         </div>
       </div>
 
-      <div className="container-mobile py-6 space-y-6">
+      <div className="container-mobile py-10 space-y-6">
         {/* Cart Summary dengan enhancement */}
         <Card className="neu-raised border-primary/20 overflow-hidden">
           <CardHeader className="pb-3">

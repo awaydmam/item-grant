@@ -40,3 +40,10 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Realtime background utility */
+.realtime-bg-image {
+  background-image: url('https://darulmaarif.net/wp-content/uploads/al_opt_content/IMAGE/darulmaarif.net/wp-content/uploads/2022/10/WhatsApp-Image-2021-02-15-at-22.07.34-1024x769.jpeg.bv.webp?bv_host=darulmaarif.net');
+  background-size: cover;
+  background-position: center;
+}
