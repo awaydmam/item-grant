@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -39,8 +39,13 @@ interface Category {
 
 export default function ManageInventory() {
   const [items, setItems] = useState<Item[]>([]);
+  const [allCount, setAllCount] = useState<number>(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const pageSize = 24; // jumlah item per batch untuk mobile cukup ringan
+  const [hasMore, setHasMore] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -101,48 +106,77 @@ export default function ManageInventory() {
     }
   }, [hasRole, getUserDepartment, canManageInventory, userDepartment, isOwnerOnly]);
 
-  // Effect untuk load data setelah role tersedia - dengan optimizer
+  // Fetch batch pertama + categories
   useEffect(() => {
-    let isMounted = true;
-    
-    const loadData = async () => {
+    let active = true;
+    const initialLoad = async () => {
       try {
         setLoading(true);
-        
-        // Gunakan optimizer untuk fetch data
-        const [itemsData, categoriesData] = await Promise.all([
-          getOptimizedItems(
-            isOwnerOnly && userDepartment ? 
-              (await supabase.from('departments').select('id').eq('name', userDepartment).single()).data?.id 
-              : undefined
-          ),
-          getOptimizedCategories()
-        ]);
+        setPage(0);
+        setHasMore(true);
+        // departemen id jika owner only
+        const deptId = isOwnerOnly && userDepartment ? (await supabase.from('departments').select('id').eq('name', userDepartment).single()).data?.id : undefined;
 
-        if (isMounted) {
-          if (itemsData) {
-            setItems(itemsData as Item[]);
-          }
-          if (categoriesData) {
-            setCategories(categoriesData as Category[]);
-          }
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error("Error loading data:", error);
-        if (isMounted) {
-          toast.error("Gagal memuat data");
-          setLoading(false);
-        }
+        // Hitung total (count head)
+        let base = supabase.from('items').select('*', { count: 'exact', head: true });
+        if (deptId) base = base.eq('department_id', deptId);
+        const { count } = await base;
+        if (active) setAllCount(count || 0);
+
+        // Ambil batch pertama
+        let query = supabase
+          .from('items')
+          .select(`*, categories(id,name), departments(id,name)`) 
+          .order('created_at', { ascending: false })
+          .range(0, pageSize - 1);
+        if (deptId) query = query.eq('department_id', deptId);
+        const { data, error } = await query;
+        if (error) throw error;
+        if (!active) return;
+        setItems((data || []) as Item[]);
+        setHasMore((data || []).length === pageSize && (count || 0) > pageSize);
+
+        // categories
+        const cats = await getOptimizedCategories();
+        if (active && cats) setCategories(cats as Category[]);
+      } catch (e) {
+        console.error('Error initial load items:', e);
+        toast.error('Gagal memuat data');
+      } finally {
+        if (active) setLoading(false);
       }
     };
-    
-    loadData();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [isOwnerOnly, userDepartment]); // Hanya bergantung pada state lokal
+    initialLoad();
+    return () => { active = false; };
+  }, [isOwnerOnly, userDepartment]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const from = nextPage * pageSize;
+      const to = from + pageSize - 1;
+      const deptId = isOwnerOnly && userDepartment ? (await supabase.from('departments').select('id').eq('name', userDepartment).single()).data?.id : undefined;
+      let query = supabase
+        .from('items')
+        .select(`*, categories(id,name), departments(id,name)`) 
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      if (deptId) query = query.eq('department_id', deptId);
+      const { data, error } = await query;
+      if (error) throw error;
+      const batch = (data || []) as Item[];
+      setItems(prev => [...prev, ...batch]);
+      setPage(nextPage);
+      setHasMore(batch.length === pageSize && (from + batch.length) < allCount);
+    } catch (e) {
+      console.error('Error load more:', e);
+      toast.error('Gagal memuat data tambahan');
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [page, pageSize, hasMore, loadingMore, isOwnerOnly, userDepartment, allCount]);
 
   const handleDeleteItem = async (itemId: string) => {
     if (!confirm("Apakah Anda yakin ingin menghapus barang ini?")) return;
@@ -213,6 +247,12 @@ export default function ManageInventory() {
     const matchesCategory = filterCategory === "all" || item.categories?.id === filterCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // Reset pagination bila filter atau search berubah (agar konsisten tampil subset awal saja)
+  useEffect(() => {
+    // Tidak refetch server; filtering dilakukan client side pada items yang sudah ada.
+    // Jika ingin server-side filter bisa ditambahkan nanti.
+  }, [searchTerm, filterCategory]);
 
   const ItemCard = ({ item }: { item: Item }) => (
     <Card className="neu-raised border-0 group hover:neu-flat transition-all duration-200">
@@ -640,12 +680,42 @@ export default function ManageInventory() {
                       <ItemCard item={item} />
                     </div>
                   ))}
+                  {loadingMore && (
+                    <div className="col-span-full flex justify-center py-4">
+                      <div className="text-xs text-gray-500 animate-pulse">Memuat...</div>
+                    </div>
+                  )}
+                  {!loadingMore && hasMore && filteredItems.length > 0 && (
+                    <div className="col-span-full flex justify-center py-2">
+                      <Button
+                        variant="outline"
+                        onClick={loadMore}
+                        className="rounded-xl neu-button-raised hover:neu-button-pressed bg-white/70"
+                      >
+                        Muat Lebih ({items.length}/{allCount})
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="neu-sunken rounded-xl mx-4 mb-4 overflow-hidden">
                   {filteredItems.map(item => (
                     <ItemRow key={item.id} item={item} />
                   ))}
+                  {loadingMore && (
+                    <div className="p-4 text-center text-xs text-gray-500 animate-pulse border-t">Memuat...</div>
+                  )}
+                  {!loadingMore && hasMore && filteredItems.length > 0 && (
+                    <div className="p-4 text-center border-t">
+                      <Button
+                        variant="outline"
+                        onClick={loadMore}
+                        className="rounded-xl neu-button-raised hover:neu-button-pressed bg-white/70 w-full"
+                      >
+                        Muat Lebih ({items.length}/{allCount})
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

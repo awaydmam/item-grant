@@ -157,13 +157,13 @@ export default function ReviewHistory() {
           <Button variant="ghost" size="icon" onClick={()=>navigate(-1)} className="neu-flat hover:neu-raised rounded-xl">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
+          <div className="py-5">
             <h1 className="text-xl font-bold">Riwayat Review</h1>
             <p className="text-sm text-muted-foreground">Semua surat yang sudah Anda proses</p>
           </div>
         </div>
       </div>
-      <div className="container-mobile py-6 space-y-6">
+      <div className="container-mobile pt-40 space-y-6">
         <Tabs defaultValue="approved" className="space-y-4">
           <TabsList className="grid grid-cols-2 w-full neu-flat rounded-2xl p-1 h-auto">
             <TabsTrigger value="approved" className="rounded-xl data-[state=active]:neu-pressed data-[state=active]:bg-primary/10 data-[state=active]:text-primary py-2.5 text-sm flex items-center justify-center">
