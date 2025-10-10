@@ -75,10 +75,10 @@ export default function Index() {
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="neu-raised p-2 rounded-xl">
-              <Package className="h-6 w-6 text-primary" />
+              <img src="/logodm.png" alt="Logo Darul Ma'arif" className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-lg font-bold">ItemGrant</h1>
+              <h1 className="text-lg font-bold">Peminjaman Alat DM</h1>
               <p className="text-xs text-muted-foreground">Sistem Peminjaman Alat</p>
             </div>
           </div>
@@ -228,7 +228,7 @@ export default function Index() {
       {/* Footer */}
       <footer className="border-t border-border/50 mt-12 py-6">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 ItemGrant. Sistem Peminjaman Alat Sekolah.</p>
+          <p>&copy; 2025 Peminjaman Alat DM. Sistem Peminjaman Alat Sekolah.</p>
         </div>
       </footer>
     </div>

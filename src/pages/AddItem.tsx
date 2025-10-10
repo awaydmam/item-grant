@@ -29,7 +29,7 @@ import {
   Plus,
   Folder
 } from "lucide-react";
-import { toast } from "sonner";
+import { showToast } from "@/lib/toast-utils";
 import { useUserRole } from "@/hooks/useUserRole";
 import { getOptimizedCategories, getOptimizedDepartments, clearRequestCache } from "@/lib/request-optimizer";
 
@@ -130,7 +130,7 @@ export default function AddItem() {
   // Fungsi untuk menambah kategori baru
   const handleAddCategory = async () => {
     if (!newCategory.trim()) {
-      toast.error("Nama kategori harus diisi");
+      showToast.error("Nama kategori harus diisi");
       return;
     }
 
@@ -158,7 +158,7 @@ export default function AddItem() {
       }
 
       if (existingCategory) {
-        toast.error("Kategori sudah ada");
+        showToast.error("Kategori sudah ada");
         return;
       }
 
@@ -189,10 +189,10 @@ export default function AddItem() {
       // Reset form dan tutup dialog
       setNewCategory("");
       setIsAddCategoryOpen(false);
-      toast.success("Kategori berhasil ditambahkan");
+      showToast.success("Kategori berhasil ditambahkan");
     } catch (error) {
       console.error("Error adding category:", error);
-      toast.error("Gagal menambahkan kategori");
+      showToast.error("Gagal menambahkan kategori");
     } finally {
       setAddingCategory(false);
     }

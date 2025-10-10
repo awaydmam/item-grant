@@ -26,13 +26,13 @@ interface CategoryMap {
 }
 
 const TEMPLATE_HEADERS = [
-  'name',
-  'code(optional)',
+  'Nama alat',
+  'kode produk(optional)',
   'description(optional)',
-  'category_name',
-  'quantity',
-  'location(optional)',
-  'status(optional)'
+  'Kategori',
+  'Jumlah',
+  'lokasi(optional)',
+  'status Alat(available, reserved, borrowed, maintenance, damaged, lost)(optional)'
 ];
 
 export default function BulkUploadItems() {

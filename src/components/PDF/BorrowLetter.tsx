@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { LetterHeader } from './LetterHeader';
 import { BorrowerInfo } from './BorrowerInfo';
 import { ItemsTable } from './ItemsTable';
@@ -19,8 +19,31 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    flexDirection: 'column',
+    flexDirection: 'column'
   },
+  qrWrapper: {
+    position: 'absolute',
+    bottom: -10,   // lebih nempel sisi bawah
+    right: -15,    // lebih nempel sisi kanan
+    width: 46,
+    height: 46,
+    padding: 1.8,
+    borderWidth: 0.4,
+    borderColor: '#555',
+    borderRadius: 2,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  qrImage: {
+    width: 42,
+    height: 42
+  },
+  qrLabel: {
+    fontSize: 6.2,
+    textAlign: 'center',
+    lineHeight: 1.15
+  }
 });
 
 interface BorrowLetterProps {
@@ -61,6 +84,8 @@ interface BorrowLetterProps {
     schoolAddress?: string;
     letterType?: 'internal' | 'official';
     logoUrl?: string;
+    qrDataUrl?: string;
+    verificationUrl?: string;
   };
 }
 
@@ -92,6 +117,11 @@ export const BorrowLetter: React.FC<BorrowLetterProps> = ({ data }) => {
             logoUrl={fallbackLogo}
             letterType={data.letterType || 'internal'}
           />
+          {data.qrDataUrl && (
+            <View style={styles.qrWrapper}>
+              <Image src={data.qrDataUrl} style={styles.qrImage} />
+            </View>
+          )}
           
           <BorrowerInfo 
             borrower={data.request.borrower}
@@ -111,6 +141,8 @@ export const BorrowLetter: React.FC<BorrowLetterProps> = ({ data }) => {
             headmasterName={data.headmasterName}
             letterType={data.letterType || 'internal'}
             createdDate={currentDate}
+            verificationUrl={undefined} // tidak ditampilkan (permintaan: hanya gambar QR)
+            qrDataUrl={undefined} // QR sudah dirender di pojok kanan bawah
           />
         </View>
       </Page>

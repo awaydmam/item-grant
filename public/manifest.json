@@ -1,0 +1,51 @@
+{
+  "name": "Sistem Peminjaman Alat - Darul Ma'arif",
+  "short_name": "Peminjaman DM",
+  "description": "Platform digital untuk peminjaman dan manajemen inventaris alat sekolah Darul Ma'arif",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "id-ID",
+  "categories": ["education", "productivity", "business"],
+  "icons": [
+    {
+      "src": "/logodm.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logodm.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "splash_pages": null,
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Akses dashboard utama",
+      "url": "/dashboard",
+      "icons": [{ "src": "/logodm.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Inventaris",
+      "short_name": "Inventaris",
+      "description": "Lihat katalog alat",
+      "url": "/inventory",
+      "icons": [{ "src": "/logodm.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Status Peminjaman",
+      "short_name": "Orders",
+      "description": "Cek status peminjaman",
+      "url": "/orders",
+      "icons": [{ "src": "/logodm.png", "sizes": "96x96" }]
+    }
+  ]
+}

@@ -65,11 +65,11 @@ async function runAllTests() {
 runAllTests();
 
 // Export functions for manual testing
-window.debugItemGrant = {
+window.debugPeminjaman Alat DM = {
     testSupabaseConnection,
     testAuthState,
     testReactApp,
     runAllTests
 };
 
-console.log("🔧 Debug functions available in window.debugItemGrant");
+console.log("🔧 Debug functions available in window.debugPeminjaman Alat DM");

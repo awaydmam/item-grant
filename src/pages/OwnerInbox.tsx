@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { BorrowLetter } from "@/components/PDF/BorrowLetter";
+import { generateQRDataUrl } from "@/lib/qr";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function OwnerInbox() {
@@ -58,6 +59,21 @@ export default function OwnerInbox() {
   const [draftMode, setDraftMode] = useState(false); // bedakan preview draft vs setelah approve
   const [ownerProfile, setOwnerProfile] = useState<{ full_name: string; department?: string } | null>(null);
   const [ownerDepartment, setOwnerDepartment] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
+
+  // Regenerate QR ketika dialog preview dibuka jika belum ada
+  useEffect(() => {
+    const run = async () => {
+      if (showLetterPreview && previewRequest?.id) {
+        const vUrl = verificationUrl || `${window.location.origin}/verify/${previewRequest.id}`;
+        if (!verificationUrl) setVerificationUrl(vUrl);
+        if (!qrDataUrl) setQrDataUrl(await generateQRDataUrl(vUrl));
+      }
+    };
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showLetterPreview]);
 
   const baseSelect = `
     *,
@@ -177,6 +193,9 @@ export default function OwnerInbox() {
 
       if (requestData) {
         setPreviewRequest(requestData);
+        const vUrl = `${window.location.origin}/verify/${requestData.id}`;
+        setVerificationUrl(vUrl);
+        setQrDataUrl(await generateQRDataUrl(vUrl));
         setShowLetterPreview(true);
       }
 
@@ -209,6 +228,9 @@ export default function OwnerInbox() {
       if (error) throw error;
       if (requestData) {
         setPreviewRequest(requestData);
+        const vUrl = `${window.location.origin}/verify/${requestData.id}`;
+        setVerificationUrl(vUrl);
+        setQrDataUrl(await generateQRDataUrl(vUrl));
         setShowLetterPreview(true);
       }
     } catch (e) {
@@ -717,7 +739,10 @@ export default function OwnerInbox() {
                     headmasterName: undefined,
                     schoolName: 'Darul Ma\'arif',
                     schoolAddress: 'Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu',
-                    letterType: 'internal'
+                    letterType: 'internal',
+                    logoUrl: '/logodm.png',
+                    qrDataUrl: qrDataUrl || undefined,
+                    verificationUrl: verificationUrl || undefined
                   }} />
                 </PDFViewer>
               </div>
@@ -743,7 +768,10 @@ export default function OwnerInbox() {
                         headmasterName: undefined,
                         schoolName: "Darul Ma'arif",
                         schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
-                        letterType: 'internal'
+                        letterType: 'internal',
+                        logoUrl: '/logodm.png',
+                        qrDataUrl: qrDataUrl || undefined,
+                        verificationUrl: verificationUrl || undefined
                       }}
                     />
                   }

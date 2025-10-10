@@ -95,9 +95,10 @@ export default function NewRequest() {
 
       if (itemsError) throw itemsError;
 
-      toast.success("Permintaan berhasil diajukan!");
-      clearCart(); // Clear cart after successful submission
-      navigate("/my-requests");
+  toast.success("Permintaan berhasil diajukan! Mengarahkan ke daftar proses...");
+  clearCart(); // kosongkan keranjang setelah submit berhasil
+  // Redirect ke halaman Orders (tab Proses default = pending) sesuai requirement baru
+  navigate("/orders", { state: { justSubmitted: true, requestId: request.id } });
     } catch (error: unknown) {
       console.error("Error:", error);
       const errorMessage = error instanceof Error ? error.message : "Gagal mengajukan permintaan";

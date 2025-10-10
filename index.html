@@ -1,20 +1,70 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>item-grant</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/logodm.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/logodm.png" />
+    <link rel="apple-touch-icon" href="/logodm.png" />
+    <link rel="shortcut icon" href="/logodm.png" />
+    
+    <!-- SEO Meta Tags -->
+    <title>Sistem Peminjaman Alat - Darul Ma'arif</title>
+    <meta name="description" content="Sistem Peminjaman Alat Sekolah Darul Ma'arif - Kelola peminjaman inventaris sekolah dengan mudah, aman, dan terintegrasi. Platform digital untuk manajemen alat dan peralatan sekolah." />
+    <meta name="keywords" content="peminjaman alat, inventaris sekolah, darul maarif, sistem sekolah, manajemen alat, peminjaman barang, sekolah digital" />
+    <meta name="author" content="Darul Ma'arif" />
+    <meta name="robots" content="index, follow" />
+    <meta name="language" content="Indonesian" />
+    <link rel="canonical" href="https://peminjaman.darulmaarif.net/" />
 
-    <meta property="og:title" content="item-grant" />
-    <meta property="og:description" content="Lovable Generated Project" />
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:url" content="https://peminjaman.darulmaarif.net/" />
+    <meta property="og:title" content="Sistem Peminjaman Alat - Darul Ma'arif" />
+    <meta property="og:description" content="Platform digital untuk peminjaman dan manajemen inventaris alat sekolah Darul Ma'arif. Mudah, aman, dan terintegrasi." />
+    <meta property="og:image" content="https://peminjaman.darulmaarif.net/logodm.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Darul Ma'arif" />
+    <meta property="og:locale" content="id_ID" />
 
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:url" content="https://peminjaman.darulmaarif.net/" />
+    <meta name="twitter:title" content="Sistem Peminjaman Alat - Darul Ma'arif" />
+    <meta name="twitter:description" content="Platform digital untuk peminjaman dan manajemen inventaris alat sekolah Darul Ma'arif. Mudah, aman, dan terintegrasi." />
+    <meta name="twitter:image" content="https://peminjaman.darulmaarif.net/logodm.png" />
+    
+    <!-- Additional SEO -->
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="msapplication-TileColor" content="#2563eb" />
+    <meta name="msapplication-TileImage" content="/logodm.png" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Peminjaman DM" />
+    
+    <!-- JSON-LD Schema -->
+    <script type="application/ld+json" src="/schema.json"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </head>
 
   <body>

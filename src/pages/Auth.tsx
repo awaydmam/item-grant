@@ -97,9 +97,9 @@ export default function Auth() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-block neu-raised p-4 rounded-2xl mb-4">
-            <Package className="h-12 w-12 text-primary" />
+            <img src="/logodm.png" alt="Logo Darul Ma'arif" className="h-12 w-12" />
           </div>
-          <h1 className="text-3xl font-bold mb-2">ItemGrant</h1>
+          <h1 className="text-3xl font-bold mb-2">Peminjaman Alat DM</h1>
           <p className="text-muted-foreground">Sistem Peminjaman Alat Sekolah</p>
         </div>
 

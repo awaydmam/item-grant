@@ -21,6 +21,7 @@ import {
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { BorrowLetter } from "@/components/PDF/BorrowLetter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { generateQRDataUrl } from "@/lib/qr";
 
 export default function HeadmasterInbox() {
   interface RequestItem {
@@ -73,6 +74,34 @@ export default function HeadmasterInbox() {
   const [previewRequest, setPreviewRequest] = useState<BorrowRequest | null>(null);
   const [showLetterPreview, setShowLetterPreview] = useState(false);
   const [headmasterName, setHeadmasterName] = useState<string>("Kepala Sekolah");
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const ensureQR = async () => {
+      if (showLetterPreview && previewRequest?.id) {
+        const vUrl = verificationUrl || `${window.location.origin}/verify/${previewRequest.id}`;
+        if (!verificationUrl) setVerificationUrl(vUrl);
+        if (!qrDataUrl) setQrDataUrl(await generateQRDataUrl(vUrl));
+      }
+    };
+    ensureQR();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showLetterPreview]);
+
+  // Generate QR juga untuk dialog draft (selectedRequest) yang tidak memakai state showLetterPreview
+  useEffect(() => {
+    const run = async () => {
+      if (selectedRequest?.id) {
+        const vUrl = `${window.location.origin}/verify/${selectedRequest.id}`;
+        // Jangan override kalau sudah ada nilai untuk request approved yang berbeda
+        if (!verificationUrl) setVerificationUrl(vUrl);
+        if (!qrDataUrl) setQrDataUrl(await generateQRDataUrl(vUrl));
+      }
+    };
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRequest]);
 
   // Helper untuk adapt struktur ke kebutuhan BorrowLetter (minimal fields)
   interface BorrowLetterRequestAdapted {
@@ -216,6 +245,9 @@ export default function HeadmasterInbox() {
 
       if (requestData) {
         setPreviewRequest(requestData);
+        const vUrl = `${window.location.origin}/verify/${requestData.id}`;
+        setVerificationUrl(vUrl);
+        setQrDataUrl(await generateQRDataUrl(vUrl));
         setShowLetterPreview(true);
       }
 
@@ -437,7 +469,9 @@ export default function HeadmasterInbox() {
                                   schoolName: 'Darul Ma\'arif',
                                   schoolAddress: 'Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu',
                                   letterType: 'official',
-                                  logoUrl: '/logodm.png'
+                                  logoUrl: '/logodm.png',
+                                  qrDataUrl: qrDataUrl || undefined,
+                                  verificationUrl: verificationUrl || undefined
                                 }}
                               />
                             </PDFViewer>
@@ -640,7 +674,9 @@ export default function HeadmasterInbox() {
                       headmasterName,
                       schoolName: "Darul Ma'arif",
                       schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
-                      letterType: 'official'
+                      letterType: 'official',
+                      qrDataUrl: qrDataUrl || undefined,
+                      verificationUrl: verificationUrl || undefined
                     }}
                   />
                 </PDFViewer>
@@ -666,7 +702,9 @@ export default function HeadmasterInbox() {
                         headmasterName,
                         schoolName: "Darul Ma'arif",
                         schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
-                        letterType: 'official'
+                        letterType: 'official',
+                        qrDataUrl: qrDataUrl || undefined,
+                        verificationUrl: verificationUrl || undefined
                       }}
                     />
                   }

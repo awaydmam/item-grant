@@ -1,0 +1,75 @@
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Sistem Peminjaman Alat Darul Ma'arif",
+  "description": "Platform digital untuk peminjaman dan manajemen inventaris alat sekolah Darul Ma'arif. Mudah, aman, dan terintegrasi.",
+  "url": "https://peminjaman.darulmaarif.net",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web Browser",
+  "author": {
+    "@type": "Organization",
+    "name": "Darul Ma'arif",
+    "url": "https://darulmaarif.net",
+    "logo": "https://peminjaman.darulmaarif.net/logodm.png",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Jalan Raya Kaplongan No. 28",
+      "addressLocality": "Kaplongan",
+      "addressRegion": "Karangampel",
+      "addressCountry": "Indonesia",
+      "postalCode": "45283"
+    },
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "telephone": "+62-822-1969-9610",
+      "contactType": "customer service",
+      "availableLanguage": "Indonesian"
+    }
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "IDR",
+    "description": "Sistem peminjaman alat gratis untuk komunitas sekolah"
+  },
+  "featureList": [
+    "Peminjaman alat digital",
+    "Manajemen inventaris",
+    "Sistem persetujuan otomatis",
+    "Laporan real-time",
+    "Barcode QR verification",
+    "PDF surat peminjaman",
+    "Dashboard monitoring"
+  ],
+  "screenshot": "https://peminjaman.darulmaarif.net/logodm.png",
+  "softwareVersion": "1.0",
+  "datePublished": "2025-01-10",
+  "inLanguage": "id-ID",
+  "isAccessibleForFree": true,
+  "hasPart": [
+    {
+      "@type": "WebPage",
+      "name": "Dashboard",
+      "url": "https://peminjaman.darulmaarif.net/dashboard",
+      "description": "Dashboard utama sistem peminjaman alat"
+    },
+    {
+      "@type": "WebPage",
+      "name": "Inventaris",
+      "url": "https://peminjaman.darulmaarif.net/inventory",
+      "description": "Katalog alat yang tersedia untuk dipinjam"
+    },
+    {
+      "@type": "WebPage",
+      "name": "Status Peminjaman",
+      "url": "https://peminjaman.darulmaarif.net/orders",
+      "description": "Tracking status permintaan peminjaman"
+    },
+    {
+      "@type": "WebPage",
+      "name": "Papan Real-time",
+      "url": "https://peminjaman.darulmaarif.net/realtime",
+      "description": "Monitor aktivitas peminjaman secara real-time"
+    }
+  ]
+}

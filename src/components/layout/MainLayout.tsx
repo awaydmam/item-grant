@@ -122,7 +122,7 @@ export function MainLayout({ children }: MainLayoutProps) {
               <div className="neu-raised p-2 rounded-xl">
                 <Package className="h-6 w-6 text-primary" />
               </div>
-              <span className="font-bold text-xl hidden sm:block">ItemGrant</span>
+              <span className="font-bold text-xl hidden sm:block">Peminjaman Alat DM</span>
             </Link>
 
             {/* Desktop Navigation */}

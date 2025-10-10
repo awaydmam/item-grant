@@ -52,6 +52,9 @@ interface LetterFooterProps {
   headmasterName?: string;
   letterType: 'internal' | 'official';
   createdDate: string;
+  // Opsional: URL verifikasi untuk ditampilkan sebagai teks tambahan (QR visual sudah diheader)
+  verificationUrl?: string; // tidak dipakai lagi untuk tampilan (dipertahankan agar tidak rusak pemanggilan lama)
+  qrDataUrl?: string; // diabaikan, QR dipindah ke BorrowLetter bottom-right
 }
 
 export const LetterFooter: React.FC<LetterFooterProps> = ({
@@ -59,7 +62,9 @@ export const LetterFooter: React.FC<LetterFooterProps> = ({
   ownerName,
   headmasterName,
   letterType,
-  createdDate
+  createdDate,
+  verificationUrl,
+  qrDataUrl
 }) => {
   return (
     <View style={styles.container}>
@@ -67,6 +72,7 @@ export const LetterFooter: React.FC<LetterFooterProps> = ({
         Demikian surat peminjaman ini dibuat dengan sebenar-benarnya untuk dapat dipergunakan sebagaimana mestinya. 
         Peminjam berjanji akan mengembalikan alat dalam kondisi baik dan tepat waktu sesuai tanggal yang telah disepakati.
       </Text>
+      {/* QR & teks verifikasi dipindahkan / dihilangkan sesuai permintaan */}
       
       <Text style={styles.dateLocation}>
        Kaplongan, {createdDate}

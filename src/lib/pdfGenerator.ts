@@ -39,6 +39,8 @@ interface PDFData {
   headmasterName?: string;
   schoolName?: string;
   schoolAddress?: string;
+  qrDataUrl?: string;
+  verificationUrl?: string;
 }
 
 export const generatePDF = async (data: PDFData): Promise<void> => {
@@ -88,6 +90,22 @@ export const generatePDF = async (data: PDFData): Promise<void> => {
   doc.line(margin, yPosition + 1, pageWidth - margin, yPosition + 1);
   yPosition += 10;
   
+  // ===== TITLE & QR (optional) =====
+  if (data.qrDataUrl) {
+    try {
+      // Embed QR di pojok kanan atas (ukuran kecil 28mm)
+      const imgSize = 28;
+      doc.addImage(data.qrDataUrl, 'PNG', pageWidth - margin - imgSize, yPosition, imgSize, imgSize);
+      if (data.verificationUrl) {
+        doc.setFontSize(6);
+        doc.setTextColor(60);
+        const clean = data.verificationUrl.replace('https://','').replace('http://','');
+        doc.text(clean, pageWidth - margin - imgSize, yPosition + imgSize + 3, { align: 'left', maxWidth: imgSize });
+      }
+    } catch (e) {
+      // fallback diam jika gagal render QR
+    }
+  }
   // ===== TITLE =====
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
