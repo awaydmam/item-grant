@@ -291,124 +291,7 @@ export default function HeadmasterInbox() {
     }
   };
 
-  const LetterPreview = ({ request }: { request: BorrowRequest }) => {
-    const previewLetterNumber = generateLetterNumber();
-    
-    return (
-      <div className="space-y-4 p-6 bg-white text-black rounded-lg max-h-[70vh] overflow-y-auto">
-        {/* Header */}
-        <div className="text-center border-b-2 border-black pb-4">
-          <h2 className="text-xl font-bold">SEKOLAH [NAMA SEKOLAH]</h2>
-          <p className="text-sm">Jl. Alamat Sekolah, Kota, Provinsi</p>
-          <p className="text-sm">Telp: (021) xxxx-xxxx | Email: sekolah@example.com</p>
-        </div>
-
-        {/* Letter Info */}
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span>Nomor</span>
-            <span className="font-mono">: {previewLetterNumber} (akan digenerate)</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Tanggal</span>
-            <span>: {format(new Date(), "dd MMMM yyyy", { locale: id })}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Perihal</span>
-            <span>: <strong>Peminjaman Alat</strong></span>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="space-y-3 text-sm mt-6">
-          <p>Yang bertanda tangan di bawah ini:</p>
-          
-          <div className="ml-6 space-y-1">
-            <p>Nama : <strong>[Kepala Sekolah]</strong></p>
-            <p>Jabatan : <strong>Kepala Sekolah</strong></p>
-          </div>
-
-          <p>Menyetujui peminjaman alat dengan detail sebagai berikut:</p>
-
-          {/* Borrower Info */}
-          <div className="ml-6 space-y-1">
-            <p>Peminjam : <strong>{request.borrower?.full_name}</strong></p>
-            <p>Unit/Bagian : <strong>{request.borrower?.unit}</strong></p>
-            <p>Kontak : <strong>{request.borrower?.phone}</strong></p>
-          </div>
-
-          {/* Items */}
-          <p className="font-semibold mt-4">Daftar Alat:</p>
-          <table className="w-full border border-black text-xs">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border border-black p-2 text-left">No</th>
-                <th className="border border-black p-2 text-left">Nama Alat</th>
-                <th className="border border-black p-2 text-center">Kode</th>
-                <th className="border border-black p-2 text-center">Jumlah</th>
-                <th className="border border-black p-2 text-left">Pemilik</th>
-              </tr>
-            </thead>
-            <tbody>
-              {request.request_items?.map((ri: { id: string; quantity: number; item?: { name: string; code?: string; department?: { name: string } } }, idx: number) => (
-                <tr key={ri.id}>
-                  <td className="border border-black p-2">{idx + 1}</td>
-                  <td className="border border-black p-2">{ri.item?.name}</td>
-                  <td className="border border-black p-2 text-center">{ri.item?.code || "-"}</td>
-                  <td className="border border-black p-2 text-center">{ri.quantity}</td>
-                  <td className="border border-black p-2">{ri.item?.department?.name}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Usage Details */}
-          <div className="ml-6 space-y-1 mt-4">
-            <p>Keperluan : <strong>{request.purpose}</strong></p>
-            <p>Periode Pemakaian : <strong>{format(new Date(request.start_date), "dd MMMM yyyy", { locale: id })} - {format(new Date(request.end_date), "dd MMMM yyyy", { locale: id })}</strong></p>
-            {request.location_usage && (
-              <p>Lokasi Penggunaan : <strong>{request.location_usage}</strong></p>
-            )}
-            <p>Penanggung Jawab : <strong>{request.pic_name} ({request.pic_contact})</strong></p>
-          </div>
-
-          {/* Notes */}
-          <div className="mt-4 p-3 bg-gray-50 border border-gray-300 rounded text-xs">
-            <p className="font-semibold">Catatan Penting:</p>
-            <ul className="list-disc ml-5 mt-2 space-y-1">
-              <li>Peminjam wajib menjaga dan merawat alat dengan baik</li>
-              <li>Pengembalian harus tepat waktu sesuai periode yang disetujui</li>
-              <li>Kerusakan atau kehilangan menjadi tanggung jawab peminjam</li>
-            </ul>
-          </div>
-
-          {/* Signatures */}
-          <div className="grid grid-cols-2 gap-8 mt-8 text-center">
-            <div>
-              <p className="mb-16">Pemilik Alat</p>
-              <p className="font-semibold underline">{request.owner_reviewer?.full_name || "[Nama Pemilik]"}</p>
-              <p className="text-xs">TTD (akan ditambahkan otomatis)</p>
-            </div>
-            <div>
-              <p className="mb-16">Kepala Sekolah</p>
-              <p className="font-semibold underline">[Nama Kepala Sekolah]</p>
-              <p className="text-xs">TTD (akan ditambahkan otomatis)</p>
-            </div>
-          </div>
-
-          {/* QR Code Placeholder */}
-          <div className="mt-6 text-center">
-            <div className="inline-block p-3 border-2 border-black">
-              <div className="w-24 h-24 bg-gray-200 flex items-center justify-center">
-                <p className="text-xs">QR Code</p>
-              </div>
-            </div>
-            <p className="text-xs mt-2">Scan untuk verifikasi dokumen</p>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // Hapus LetterPreview HTML lama; sekarang semua preview pakai PDF BorrowLetter agar konsisten A4
 
   if (loading) {
     return (
@@ -535,17 +418,31 @@ export default function HeadmasterInbox() {
                           onClick={() => setSelectedRequest(request)}
                         >
                           <Eye className="h-4 w-4 mr-2" />
-                          Lihat Preview Surat
+                          Preview Surat (PDF)
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-3xl mx-4">
+                      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
                         <DialogHeader>
-                          <DialogTitle>Preview Surat Peminjaman</DialogTitle>
-                          <DialogDescription>
-                            Surat akan terbit setelah Anda approve
-                          </DialogDescription>
+                          <DialogTitle>Preview Surat Resmi (Draft)</DialogTitle>
+                          <DialogDescription>Format final A4 dengan tanda tangan Kepala Sekolah akan muncul setelah approve.</DialogDescription>
                         </DialogHeader>
-                        {selectedRequest && <LetterPreview request={selectedRequest} />}
+                        {selectedRequest && (
+                          <div className="h-[600px] border rounded-lg overflow-hidden">
+                            <PDFViewer style={{ width: '100%', height: '100%' }} showToolbar={false}>
+                              <BorrowLetter
+                                data={{
+                                  request: asLetterRequest(selectedRequest)!,
+                                  ownerName: selectedRequest?.owner_reviewer?.full_name || 'Pengelola Inventaris',
+                                  headmasterName: headmasterName || 'Kepala Sekolah',
+                                  schoolName: 'Darul Ma\'arif',
+                                  schoolAddress: 'Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu',
+                                  letterType: 'official',
+                                  logoUrl: '/logodm.png'
+                                }}
+                              />
+                            </PDFViewer>
+                          </div>
+                        )}
                       </DialogContent>
                     </Dialog>
 

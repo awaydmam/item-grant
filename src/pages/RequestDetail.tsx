@@ -52,6 +52,10 @@ interface RequestDetail {
   headmaster_notes: string;
   rejection_reason: string;
   created_at: string;
+  owner_reviewer?: { full_name: string };
+  headmaster_approver?: { full_name: string };
+  owner_reviewed_by?: string | null;
+  headmaster_approved_by?: string | null;
   borrower: {
     full_name: string;
     unit: string;
@@ -100,24 +104,19 @@ export default function RequestDetail() {
                 description,
                 departments!inner(name)
               )
-            )
+            ),
+            borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit, phone),
+            owner_reviewer:profiles!borrow_requests_owner_reviewed_by_fkey(full_name),
+            headmaster_approver:profiles!borrow_requests_headmaster_approved_by_fkey(full_name)
           `)
           .eq("id", requestId)
           .single();
 
         if (error) throw error;
-        
-        // Fetch borrower info separately
-        const { data: borrowerData } = await supabase
-          .from("profiles")
-          .select("full_name, unit, phone")
-          .eq("id", data.borrower_id)
-          .single();
-        
         if (isMounted) {
           setRequest({
             ...data,
-            borrower: borrowerData || { full_name: '', unit: '', phone: '' }
+            borrower: data.borrower || { full_name: '', unit: '', phone: '' }
           } as RequestDetail);
         }
       } catch (error) {
@@ -237,27 +236,11 @@ export default function RequestDetail() {
     }
 
     try {
-      // Get headmaster info
-      const { data: headmasterRoles } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "headmaster")
-        .limit(1)
-        .single();
-
-      let headmasterName = undefined;
-      if (headmasterRoles) {
-        const { data: headmasterProfile } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", headmasterRoles.user_id)
-          .single();
-        
-        headmasterName = headmasterProfile?.full_name;
-      }
-
-      // Tentukan tipe surat: jika ada headmasterName berarti official, else internal
-      const letterType = headmasterName ? 'official' : 'internal';
+      // Gunakan nama kepala sekolah dari relasi jika ada
+      const headmasterName = request.headmaster_approver?.full_name;
+      const ownerName = request.owner_reviewer?.full_name;
+      // Tentukan tipe surat: jika punya letter_number (approved headmaster) maka official
+      const letterType = request.letter_number ? 'official' : (headmasterName ? 'official' : 'internal');
 
       // Prepare PDF data
       const pdfData = {
@@ -286,10 +269,11 @@ export default function RequestDetail() {
           }))
         },
         headmasterName,
+        ownerName,
         schoolName: "Darul Ma'arif",
         schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu\nTelp: 082219699610 | Email: pontrendarulmaarif@gmail.com",
         letterType,
-        logoUrl: '/logodm.webp'
+        logoUrl: '/logodm.png'
       };
 
       await generatePDF(pdfData);
@@ -665,12 +649,12 @@ export default function RequestDetail() {
                           }
                         }))
                       },
-                      ownerName: "Pengelola Inventaris",
-                      headmasterName: request.letter_number ? 'Kepala Sekolah' : undefined,
+                      ownerName: request.owner_reviewer?.full_name || 'Pengelola Inventaris',
+                      headmasterName: request.letter_number ? (request.headmaster_approver?.full_name || 'Kepala Sekolah') : undefined,
                       schoolName: "Darul Ma'arif",
                       schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
                       letterType: request.letter_number ? 'official' : 'internal',
-                      logoUrl: '/logodm.webp'
+                      logoUrl: '/logodm.png'
                     }}
                   />
                 </PDFViewer>
@@ -702,12 +686,12 @@ export default function RequestDetail() {
                             }
                           }))
                         },
-                        ownerName: "Pengelola Inventaris",
-                        headmasterName: request.letter_number ? 'Kepala Sekolah' : undefined,
+                        ownerName: request.owner_reviewer?.full_name || 'Pengelola Inventaris',
+                        headmasterName: request.letter_number ? (request.headmaster_approver?.full_name || 'Kepala Sekolah') : undefined,
                         schoolName: "Darul Ma'arif",
                         schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
                         letterType: request.letter_number ? 'official' : 'internal',
-                        logoUrl: '/logodm.webp'
+                        logoUrl: '/logodm.png'
                       }}
                     />
                   }

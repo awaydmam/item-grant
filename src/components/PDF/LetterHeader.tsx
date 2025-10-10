@@ -76,9 +76,17 @@ export const LetterHeader: React.FC<LetterHeaderProps> = ({
   logoUrl,
   letterType
 }) => {
+  // Pastikan hanya pakai format yang aman (png/jpg/jpeg/base64). Jika webp -> coba ganti .webp ke .png
+  const resolvedLogo = (() => {
+    if (!logoUrl) return '/logodm.png';
+    if (logoUrl.startsWith('data:image')) return logoUrl; // base64 inline
+    if (logoUrl.endsWith('.webp')) return logoUrl.replace('.webp', '.png');
+    return logoUrl;
+  })();
+
   return (
     <View style={styles.headerContainer}>
-      {logoUrl && <Image style={styles.logo} src={logoUrl} />}
+      {resolvedLogo && <Image style={styles.logo} src={resolvedLogo} />}
       {letterType && (
         <Text style={styles.typeBadge}>{letterType === 'official' ? 'RESMI' : 'INTERNAL'}</Text>
       )}

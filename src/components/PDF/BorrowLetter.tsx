@@ -70,11 +70,14 @@ export const BorrowLetter: React.FC<BorrowLetterProps> = ({ data }) => {
     month: 'long',
     day: 'numeric'
   });
-  // Fallback logo: prioritaskan logo yang dikirim via props, lalu logo lokal publik, terakhir URL eksternal lama
+  // Fallback logo prioritas: prop -> png lokal -> webp (legacy) -> eksternal -> base64 minimal placeholder
+  const BASE64_PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAMAAABhv6HkAAAABlBMVEX////MzMznlBVVAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAIUlEQVQImQXGwQkAIAwAsVf//zcuEQQJpWmiyQF1jA0w4yJ4eABzGAg3g5Xw7wAAAABJRU5ErkJggg==';
   const fallbackLogo = [
     data.logoUrl,
-    '/logodm.webp',
-    'https://darulmaarif.net/wp-content/uploads/al_opt_content/IMAGE/darulmaarif.net/wp-content/uploads/2025/08/android-chrome-192x192-1.png.bv.webp?bv_host=darulmaarif.net'
+    '/logodm.png',
+    '/logodm.png',
+    'https://darulmaarif.net/wp-content/uploads/al_opt_content/IMAGE/darulmaarif.net/wp-content/uploads/2025/08/android-chrome-192x192-1.png.bv.webp?bv_host=darulmaarif.net',
+    BASE64_PLACEHOLDER
   ].find(Boolean);
 
   return (
