@@ -314,6 +314,15 @@ export default function Profile() {
               </Button>
             )}
 
+            <Button
+              variant="outline"
+              className="w-full justify-start neu-flat"
+              onClick={() => navigate('/my-requests')}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Riwayat Surat Peminjaman
+            </Button>
+
             {isAdmin() && (
               <>
                 <Button
