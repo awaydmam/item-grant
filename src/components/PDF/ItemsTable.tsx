@@ -75,9 +75,14 @@ const styles = StyleSheet.create({
 interface ItemsTableProps {
   items: Array<{
     quantity: number;
-    items: {
+    items?: {
       name: string;
-      code: string;
+      code?: string;
+      description?: string;
+    };
+    item?: {
+      name: string;
+      code?: string;
       description?: string;
     };
   }>;
@@ -96,20 +101,22 @@ export const ItemsTable: React.FC<ItemsTableProps> = ({ items }) => {
       </View>
       
       {/* Rows */}
-      {items.map((item, index) => (
+      {items.map((item, index) => {
+        const ref = item.items || item.item || { name: '-', code: '-', description: '' };
+        return (
         <View 
           key={index} 
           style={index === items.length - 1 ? styles.tableRowLast : styles.tableRow}
         >
           <Text style={[styles.colNo, styles.cellText]}>{index + 1}</Text>
-          <Text style={[styles.colName, styles.cellText]}>{item.items.name}</Text>
-          <Text style={[styles.colCode, styles.cellText]}>{item.items.code}</Text>
+          <Text style={[styles.colName, styles.cellText]}>{ref.name}</Text>
+          <Text style={[styles.colCode, styles.cellText]}>{ref.code || '-'}</Text>
           <Text style={[styles.colQty, styles.cellText]}>{item.quantity} unit</Text>
           <Text style={[styles.colNote, styles.cellText]}>
-            {item.items.description || 'Baik'}
+            {ref.description || 'Baik'}
           </Text>
         </View>
-      ))}
+      );})}
     </View>
   );
 };

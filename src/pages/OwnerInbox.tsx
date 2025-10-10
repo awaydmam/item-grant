@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { toast } from "sonner";
-import { Inbox, CheckCircle, XCircle, Edit3, Calendar, User, FileText, Download, Eye, FilePreview } from "lucide-react";
+import { Inbox, CheckCircle, XCircle, Edit3, Calendar, User, FileText, Download, Eye, History } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import {
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { BorrowLetter } from "@/components/PDF/BorrowLetter";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function OwnerInbox() {
   interface RequestItem {
@@ -38,8 +39,15 @@ export default function OwnerInbox() {
     request_items?: RequestItem[];
     borrower?: { full_name: string; unit: string; phone?: string };
     owner_reviewer?: { full_name: string };
+    created_at?: string;
+    letter_generated_at?: string;
+    rejection_reason?: string;
+    owner_reviewed_at?: string;
+    letter_number?: string;
   }
-  const [requests, setRequests] = useState<BorrowRequest[]>([]);
+  const [requests, setRequests] = useState<BorrowRequest[]>([]); // pending_owner
+  const [approvedRequests, setApprovedRequests] = useState<BorrowRequest[]>([]);
+  const [rejectedRequests, setRejectedRequests] = useState<BorrowRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionNotes, setActionNotes] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -49,30 +57,57 @@ export default function OwnerInbox() {
   const [ownerProfile, setOwnerProfile] = useState<{ full_name: string; department?: string } | null>(null);
   const [ownerDepartment, setOwnerDepartment] = useState<string | null>(null);
 
+  const baseSelect = `
+    *,
+    request_items(
+      *,
+      item:items(name, code, department:departments(name))
+    ),
+    borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit, phone),
+    owner_reviewer:profiles!borrow_requests_owner_reviewed_by_fkey(full_name)
+  `;
+
   const fetchRequests = useCallback(async () => {
-    const { data } = await supabase
+    // Pending
+    const { data: pendingData } = await supabase
       .from("borrow_requests")
-      .select(`
-        *,
-        request_items(
-          *,
-          item:items(name, code, department:departments(name))
-        ),
-        borrower:profiles!borrow_requests_borrower_id_fkey(full_name, unit, phone),
-        owner_reviewer:profiles!borrow_requests_owner_reviewed_by_fkey(full_name)
-      `)
+      .select(baseSelect)
       .eq("status", "pending_owner")
       .order("created_at", { ascending: false });
 
-    let filtered: BorrowRequest[] = (data as BorrowRequest[]) || [];
-    if (ownerDepartment) {
-      filtered = filtered.filter((req) =>
-        req.request_items?.some((ri) => ri.item?.department?.name === ownerDepartment)
-      );
-    }
-    setRequests(filtered);
+    // Approved (internal direct OR setelah headmaster approve) yang sudah generate surat internal tanpa headmaster
+    const { data: approvedData } = await supabase
+      .from("borrow_requests")
+      .select(baseSelect)
+      .in("status", ["approved", "active", "completed"]) // show history of successes
+      .not("owner_reviewed_at", "is", null)
+      .order("owner_reviewed_at", { ascending: false })
+      .limit(50);
+
+    // Rejected by owner (status rejected dan owner_reviewed_by tidak null)
+    const { data: rejectedData } = await supabase
+      .from("borrow_requests")
+      .select(baseSelect)
+      .eq("status", "rejected")
+      .not("owner_reviewed_at", "is", null)
+      .order("owner_reviewed_at", { ascending: false })
+      .limit(50);
+
+    const filterByDept = (arr: BorrowRequest[] | null) => {
+      let list: BorrowRequest[] = arr || [];
+      if (ownerDepartment) {
+        list = list.filter((req) =>
+          req.request_items?.some((ri) => ri.item?.department?.name === ownerDepartment)
+        );
+      }
+      return list;
+    };
+
+    setRequests(filterByDept(pendingData as BorrowRequest[]));
+    setApprovedRequests(filterByDept(approvedData as BorrowRequest[]));
+    setRejectedRequests(filterByDept(rejectedData as BorrowRequest[]));
     setLoading(false);
-  }, [ownerDepartment]);
+  }, [ownerDepartment, baseSelect]);
 
   const initOwnerAndRequests = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -302,6 +337,34 @@ export default function OwnerInbox() {
     }
   };
 
+  // Adaptasi data untuk komponen BorrowLetter (struktur longgar)
+  interface BorrowLetterRequestAdapted {
+    id: string; letter_number?: string; purpose: string; start_date: string; end_date: string; location_usage?: string; pic_name: string; pic_contact: string; created_at?: string; borrower: { full_name: string; unit: string; phone?: string }; request_items: { quantity: number; items: { name: string; code?: string; description?: string } }[];
+  }
+  const asLetterRequest = (r: BorrowRequest | null): BorrowLetterRequestAdapted | undefined => {
+    if (!r) return undefined;
+    return {
+      id: r.id,
+      letter_number: (r as unknown as { letter_number?: string }).letter_number,
+      purpose: r.purpose,
+      start_date: r.start_date,
+      end_date: r.end_date,
+      location_usage: r.location_usage,
+      pic_name: r.pic_name,
+      pic_contact: r.pic_contact,
+      created_at: (r as unknown as { created_at?: string }).created_at,
+      borrower: r.borrower || { full_name: '-', unit: '-', phone: '' },
+      request_items: (r.request_items || []).map(ri => ({
+        quantity: ri.quantity,
+        items: {
+          name: ri.item?.name || '-',
+          code: ri.item?.code || '',
+          description: ''
+        }
+      }))
+    };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background pb-16">
@@ -319,21 +382,29 @@ export default function OwnerInbox() {
         <div>
           <h1 className="text-2xl font-bold mb-2">Kotak Masuk Pemilik</h1>
           <p className="text-muted-foreground">
-            Review dan kelola pengajuan peminjaman alat
+            Review, terbitkan, atau kelola riwayat surat peminjaman
           </p>
         </div>
 
-        {requests.length === 0 ? (
-          <Card className="neu-flat">
-            <CardContent className="py-12 text-center">
-              <Inbox className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Tidak ada permintaan baru</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {requests.map((request) => (
-              <Card key={request.id} className="neu-flat">
+        <Tabs defaultValue="pending" className="w-full">
+          <TabsList className="grid grid-cols-3 w-full">
+            <TabsTrigger value="pending">Menunggu</TabsTrigger>
+            <TabsTrigger value="approved">Disetujui</TabsTrigger>
+            <TabsTrigger value="rejected">Ditolak</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pending" className="mt-4">
+            {requests.length === 0 ? (
+              <Card className="neu-flat">
+                <CardContent className="py-12 text-center">
+                  <Inbox className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Tidak ada permintaan baru</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {requests.map((request) => (
+                  <Card key={request.id} className="neu-flat">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
@@ -520,8 +591,103 @@ export default function OwnerInbox() {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        )}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="approved" className="mt-4">
+            {approvedRequests.length === 0 ? (
+              <Card className="neu-flat">
+                <CardContent className="py-10 text-center space-y-2">
+                  <History className="h-10 w-10 text-muted-foreground mx-auto" />
+                  <p className="text-muted-foreground text-sm">Belum ada riwayat surat disetujui</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {approvedRequests.map((request) => (
+                  <Card key={request.id} className="neu-flat">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-base leading-tight">
+                            {request.borrower?.full_name}
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground mt-1 break-words">
+                            {request.borrower?.unit}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="flex-shrink-0">Disetujui</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="h-4 w-4 flex-shrink-0" />
+                        <span>
+                          {format(new Date(request.start_date), "dd MMM", { locale: id })} - {format(new Date(request.end_date), "dd MMM yyyy", { locale: id })}
+                        </span>
+                      </div>
+                      {request.letter_generated_at && (
+                        <p className="text-xs text-muted-foreground">Surat terbit: {format(new Date(request.letter_generated_at), "dd MMM yyyy HH:mm", { locale: id })}</p>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setPreviewRequest(request); setShowLetterPreview(true); setDraftMode(false); }}
+                        className="w-full"
+                      >
+                        Lihat Surat
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="rejected" className="mt-4">
+            {rejectedRequests.length === 0 ? (
+              <Card className="neu-flat">
+                <CardContent className="py-10 text-center space-y-2">
+                  <History className="h-10 w-10 text-muted-foreground mx-auto" />
+                  <p className="text-muted-foreground text-sm">Tidak ada permintaan ditolak</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {rejectedRequests.map((request) => (
+                  <Card key={request.id} className="neu-flat">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-base leading-tight">
+                            {request.borrower?.full_name}
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground mt-1 break-words">
+                            {request.borrower?.unit}
+                          </p>
+                        </div>
+                        <Badge variant="destructive" className="flex-shrink-0">Ditolak</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="h-4 w-4 flex-shrink-0" />
+                        <span>
+                          {format(new Date(request.start_date), "dd MMM", { locale: id })} - {format(new Date(request.end_date), "dd MMM yyyy", { locale: id })}
+                        </span>
+                      </div>
+                      {request.rejection_reason && (
+                        <p className="text-xs text-red-600 break-words">Alasan: {request.rejection_reason}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">Ditolak: {request.owner_reviewed_at ? format(new Date(request.owner_reviewed_at), "dd MMM yyyy HH:mm", { locale: id }) : '-'}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
       
       {/* Letter Preview Dialog */}
@@ -543,7 +709,7 @@ export default function OwnerInbox() {
                   showToolbar={false}
                 >
                   <BorrowLetter data={{
-                    request: previewRequest,
+                    request: asLetterRequest(previewRequest)!,
                     ownerName: previewRequest?.owner_reviewer?.full_name || ownerProfile?.full_name || 'Pengelola Inventaris',
                     headmasterName: undefined,
                     schoolName: 'Darul Ma\'arif',
@@ -569,7 +735,7 @@ export default function OwnerInbox() {
                   document={
                     <BorrowLetter 
                       data={{
-                        request: previewRequest,
+                        request: asLetterRequest(previewRequest)!,
                         ownerName: previewRequest?.owner_reviewer?.full_name || ownerProfile?.full_name || "Pengelola Inventaris",
                         headmasterName: undefined,
                         schoolName: "Darul Ma'arif",

@@ -46,12 +46,12 @@ interface BorrowerInfoProps {
   borrower: {
     full_name: string;
     unit: string;
-    phone: string;
+    phone?: string;
   };
   purpose: string;
   startDate: string;
   endDate: string;
-  location: string;
+  location?: string;
   picName: string;
   picContact: string;
 }
@@ -92,11 +92,13 @@ export const BorrowerInfo: React.FC<BorrowerInfoProps> = ({
           <Text style={styles.valueNormal}>{borrower.unit}</Text>
         </View>
         
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>No. Telepon</Text>
-          <Text style={styles.colon}>:</Text>
-          <Text style={styles.valueNormal}>{borrower.phone}</Text>
-        </View>
+        {borrower.phone && (
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>No. Telepon</Text>
+            <Text style={styles.colon}>:</Text>
+            <Text style={styles.valueNormal}>{borrower.phone}</Text>
+          </View>
+        )}
         
         <View style={styles.infoRow}>
           <Text style={styles.label}>Keperluan</Text>
@@ -112,11 +114,13 @@ export const BorrowerInfo: React.FC<BorrowerInfoProps> = ({
           </Text>
         </View>
         
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>Lokasi Penggunaan</Text>
-          <Text style={styles.colon}>:</Text>
-          <Text style={styles.valueNormal}>{location}</Text>
-        </View>
+        {location && (
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Lokasi Penggunaan</Text>
+            <Text style={styles.colon}>:</Text>
+            <Text style={styles.valueNormal}>{location}</Text>
+          </View>
+        )}
         
         <View style={styles.infoRow}>
           <Text style={styles.label}>Penanggung Jawab</Text>

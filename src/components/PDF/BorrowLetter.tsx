@@ -31,20 +31,26 @@ interface BorrowLetterProps {
       purpose: string;
       start_date: string;
       end_date: string;
-      location_usage: string;
+      location_usage?: string;
       pic_name: string;
       pic_contact: string;
-      created_at: string;
+      created_at?: string;
       borrower: {
         full_name: string;
         unit: string;
-        phone: string;
+        phone?: string;
       };
       request_items: Array<{
         quantity: number;
-        items: {
+        items?: {
           name: string;
-          code: string;
+          code?: string;
+          description?: string;
+        };
+        // fallback struktur lain (kadang dipakai alias 'items' vs 'item')
+        item?: {
+          name: string;
+          code?: string;
           description?: string;
         };
       }>;

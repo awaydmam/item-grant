@@ -16,6 +16,7 @@ import Profile from "./pages/Profile";
 import Realtime from "./pages/Realtime";
 import OwnerInbox from "./pages/OwnerInbox";
 import HeadmasterInbox from "./pages/HeadmasterInbox";
+import ReviewHistory from "./pages/ReviewHistory";
 import ManageInventory from "./pages/ManageInventory";
 import AddItem from "./pages/AddItem";
 import BulkUploadItems from "./pages/BulkUploadItems";
@@ -45,6 +46,7 @@ const App = () => (
           <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
           <Route path="/orders/:requestId" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/review-history" element={<ProtectedRoute><ReviewHistory /></ProtectedRoute>} />
           <Route path="/realtime" element={<ProtectedRoute><Realtime /></ProtectedRoute>} />
           
           {/* Admin/Owner Routes */}

@@ -320,8 +320,19 @@ export default function Profile() {
               onClick={() => navigate('/my-requests')}
             >
               <FileText className="h-4 w-4 mr-2" />
-              Riwayat Surat Peminjaman
+              Pengajuan Saya
             </Button>
+
+            {(isOwner() || isHeadmaster()) && (
+              <Button
+                variant="outline"
+                className="w-full justify-start neu-flat"
+                onClick={() => navigate('/review-history')}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Riwayat Review Surat
+              </Button>
+            )}
 
             {isAdmin() && (
               <>
