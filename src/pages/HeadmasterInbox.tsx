@@ -26,7 +26,13 @@ export default function HeadmasterInbox() {
   interface RequestItem {
     id: string;
     quantity: number;
+    // Bisa muncul sebagai 'item' (alias item:items) atau 'items' (tanpa alias) tergantung query yang dipakai
     item?: {
+      name: string;
+      code?: string;
+      department?: { name: string };
+    };
+    items?: {
       name: string;
       code?: string;
       department?: { name: string };
@@ -92,8 +98,8 @@ export default function HeadmasterInbox() {
       request_items: (r.request_items || []).map(ri => ({
         quantity: ri.quantity,
         items: {
-          name: ri.item?.name || '-',
-          code: ri.item?.code || '',
+          name: ri.item?.name || ri.items?.name || '-',
+          code: ri.item?.code || ri.items?.code || '',
           description: ''
         }
       }))

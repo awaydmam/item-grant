@@ -1,42 +1,62 @@
 import React from 'react';
-import { Text, View, StyleSheet } from '@react-pdf/renderer';
+import { Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
   headerContainer: {
-    marginBottom: 30,
+    marginBottom: 18,
     textAlign: 'center',
-    borderBottomWidth: 2,
+    borderBottomWidth: 1.5,
     borderBottomColor: '#000',
-    paddingBottom: 15,
+    paddingBottom: 10,
+    position: 'relative'
   },
   schoolName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 5,
     textTransform: 'uppercase',
   },
   schoolAddress: {
-    fontSize: 10,
-    marginBottom: 8,
+    fontSize: 9,
+    marginBottom: 4,
     color: '#666',
   },
   letterTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 15,
+    marginTop: 10,
+    marginBottom: 10,
     textTransform: 'uppercase',
     textDecoration: 'underline',
   },
   letterInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    fontSize: 10,
-    marginBottom: 10,
+    fontSize: 9,
+    marginBottom: 4,
   },
   letterNumber: {
     fontWeight: 'bold',
   },
+  logo: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 46,
+    height: 46,
+    objectFit: 'cover'
+  },
+  typeBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    fontSize: 7,
+    padding: 3,
+    borderWidth: 0.7,
+    borderColor: '#444',
+    borderRadius: 2,
+    textTransform: 'uppercase'
+  }
 });
 
 interface LetterHeaderProps {
@@ -44,16 +64,24 @@ interface LetterHeaderProps {
   schoolAddress: string;
   letterDate: string;
   letterNumber: string;
+  logoUrl?: string;
+  letterType?: 'internal' | 'official';
 }
 
 export const LetterHeader: React.FC<LetterHeaderProps> = ({
   schoolName,
   schoolAddress,
   letterDate,
-  letterNumber
+  letterNumber,
+  logoUrl,
+  letterType
 }) => {
   return (
     <View style={styles.headerContainer}>
+      {logoUrl && <Image style={styles.logo} src={logoUrl} />}
+      {letterType && (
+        <Text style={styles.typeBadge}>{letterType === 'official' ? 'RESMI' : 'INTERNAL'}</Text>
+      )}
       <Text style={styles.schoolName}>{schoolName}</Text>
       <Text style={styles.schoolAddress}>{schoolAddress}</Text>
       

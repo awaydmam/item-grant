@@ -4,17 +4,17 @@ import { Text, View, StyleSheet } from '@react-pdf/renderer';
 const borderColor = '#000';
 const styles = StyleSheet.create({
   tableContainer: {
-    marginBottom: 20,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: borderColor,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f2f2f2',
     borderBottomWidth: 1,
     borderBottomColor: borderColor,
     alignItems: 'center',
-    height: 30,
+    height: 24,
     fontWeight: 'bold',
   },
   tableRow: {
@@ -22,53 +22,53 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: borderColor,
     alignItems: 'center',
-    minHeight: 25,
+    minHeight: 20,
   },
   tableRowLast: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 25,
+    minHeight: 20,
   },
   colNo: {
     width: '8%',
     textAlign: 'center',
     borderRightWidth: 1,
     borderRightColor: borderColor,
-    padding: 5,
+    padding: 3,
   },
   colName: {
     width: '45%',
     textAlign: 'left',
     borderRightWidth: 1,
     borderRightColor: borderColor,
-    padding: 5,
+    padding: 3,
   },
   colCode: {
     width: '20%',
     textAlign: 'center',
     borderRightWidth: 1,
     borderRightColor: borderColor,
-    padding: 5,
+    padding: 3,
   },
   colQty: {
     width: '12%',
     textAlign: 'center',
     borderRightWidth: 1,
     borderRightColor: borderColor,
-    padding: 5,
+    padding: 3,
   },
   colNote: {
     width: '15%',
     textAlign: 'center',
-    padding: 5,
+    padding: 3,
   },
   headerText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
   },
   cellText: {
-    fontSize: 9,
-    lineHeight: 1.3,
+    fontSize: 8.2,
+    lineHeight: 1.25,
   },
 });
 

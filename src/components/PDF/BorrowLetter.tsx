@@ -9,12 +9,12 @@ const styles = StyleSheet.create({
   page: {
     backgroundColor: '#fff',
     fontFamily: 'Helvetica',
-    fontSize: 11,
-    paddingTop: 30,
-    paddingLeft: 50,
-    paddingRight: 50,
-    paddingBottom: 30,
-    lineHeight: 1.5,
+    fontSize: 10.5,
+    paddingTop: 26,
+    paddingLeft: 40,
+    paddingRight: 40,
+    paddingBottom: 28,
+    lineHeight: 1.35,
     flexDirection: 'column',
   },
   container: {
@@ -60,6 +60,7 @@ interface BorrowLetterProps {
     schoolName?: string;
     schoolAddress?: string;
     letterType?: 'internal' | 'official';
+    logoUrl?: string;
   };
 }
 
@@ -69,6 +70,12 @@ export const BorrowLetter: React.FC<BorrowLetterProps> = ({ data }) => {
     month: 'long',
     day: 'numeric'
   });
+  // Fallback logo: prioritaskan logo yang dikirim via props, lalu logo lokal publik, terakhir URL eksternal lama
+  const fallbackLogo = [
+    data.logoUrl,
+    '/logodm.webp',
+    'https://darulmaarif.net/wp-content/uploads/al_opt_content/IMAGE/darulmaarif.net/wp-content/uploads/2025/08/android-chrome-192x192-1.png.bv.webp?bv_host=darulmaarif.net'
+  ].find(Boolean);
 
   return (
     <Document>
@@ -79,6 +86,8 @@ export const BorrowLetter: React.FC<BorrowLetterProps> = ({ data }) => {
             schoolAddress={data.schoolAddress || "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu"}
             letterDate={currentDate}
             letterNumber={data.request.letter_number || `SPB/${new Date().getFullYear()}/${String(Date.now()).slice(-6)}`}
+            logoUrl={fallbackLogo}
+            letterType={data.letterType || 'internal'}
           />
           
           <BorrowerInfo 

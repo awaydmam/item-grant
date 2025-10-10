@@ -3,45 +3,45 @@ import { Text, View, StyleSheet } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 30,
+    marginTop: 18,
     flex: 1,
     justifyContent: 'flex-end',
   },
   agreementText: {
-    fontSize: 11,
-    marginBottom: 20,
-    lineHeight: 1.5,
+    fontSize: 10,
+    marginBottom: 12,
+    lineHeight: 1.4,
   },
   signatureContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 14,
   },
   signatureBox: {
-    width: '30%',
+    width: '32%',
     textAlign: 'center',
   },
   signatureLabel: {
-    fontSize: 10,
-    marginBottom: 50,
+    fontSize: 9,
+    marginBottom: 35,
   },
   signatureName: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
     textDecoration: 'underline',
   },
   dateLocation: {
     textAlign: 'right',
-    fontSize: 10,
-    marginBottom: 30,
+    fontSize: 9,
+    marginBottom: 16,
   },
   threeSignature: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 14,
   },
   signatureBoxThree: {
-    width: '30%',
+    width: '32%',
     textAlign: 'center',
   },
 });

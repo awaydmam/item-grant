@@ -160,7 +160,9 @@ export default function RequestDetail() {
     try {
       const { error } = await supabase
         .from("borrow_requests")
-        .update({ letter_viewed_at: new Date().toISOString() })
+        // cast any agar tidak bentrok dengan generated types yang mungkin belum memuat kolom baru
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update({ letter_viewed_at: new Date().toISOString() } as any)
         .eq("id", requestId);
 
       if (error) throw error;
@@ -254,6 +256,9 @@ export default function RequestDetail() {
         headmasterName = headmasterProfile?.full_name;
       }
 
+      // Tentukan tipe surat: jika ada headmasterName berarti official, else internal
+      const letterType = headmasterName ? 'official' : 'internal';
+
       // Prepare PDF data
       const pdfData = {
         request: {
@@ -282,7 +287,9 @@ export default function RequestDetail() {
         },
         headmasterName,
         schoolName: "Darul Ma'arif",
-        schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu\nTelp: 082219699610 | Email: pontrendarulmaarif@gmail.com"
+        schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu\nTelp: 082219699610 | Email: pontrendarulmaarif@gmail.com",
+        letterType,
+        logoUrl: '/logodm.webp'
       };
 
       await generatePDF(pdfData);
@@ -420,10 +427,46 @@ export default function RequestDetail() {
               </div>
             )}
             
-            {!request.letter_number && request.status !== 'rejected' && request.status !== 'cancelled' && (
+            {/* Surat Internal Siap (owner approved tapi belum official) */}
+            {!request.letter_number && request.status === 'approved' && (
+              <div className="mt-6 p-5 neu-sunken rounded-xl bg-blue-50/50 border border-blue-200/60">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <p className="text-xs font-medium text-blue-700 mb-1">Surat Internal Siap</p>
+                    <p className="text-sm font-semibold text-blue-800">Format Internal (2 Tanda Tangan)</p>
+                  </div>
+                  <div className="neu-flat p-3 rounded-xl bg-blue-100">
+                    <FileText className="h-6 w-6 text-blue-600" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    onClick={handlePreviewLetter}
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-11 neu-button-raised hover:neu-button-pressed border-0"
+                    size="lg"
+                  >
+                    <Eye className="h-5 w-5 mr-2" />
+                    Preview Surat
+                  </Button>
+                  <Button
+                    onClick={handleDownloadLetter}
+                    className="bg-green-600 hover:bg-green-700 text-white rounded-xl h-11 neu-button-raised hover:neu-button-pressed border-0"
+                    size="lg"
+                  >
+                    <Download className="h-5 w-5 mr-2" />
+                    Download PDF
+                  </Button>
+                </div>
+                <p className="text-xs text-blue-700 mt-3 text-center">
+                  Ini versi internal sebelum ditandatangani Kepala Sekolah.
+                </p>
+              </div>
+            )}
+            {/* Pesan menunggu hanya untuk pending_owner atau pending_headmaster */}
+            {!request.letter_number && (request.status === 'pending_owner' || request.status === 'pending_headmaster') && (
               <div className="mt-6 p-4 neu-sunken rounded-xl bg-yellow-50/50">
                 <p className="text-sm text-yellow-800 text-center">
-                  ⏳ Surat sedang diproses. Tunggu persetujuan dari pemilik alat dan kepala sekolah.
+                  ⏳ Surat sedang diproses. Menunggu alur persetujuan berikutnya.
                 </p>
               </div>
             )}
@@ -623,10 +666,11 @@ export default function RequestDetail() {
                         }))
                       },
                       ownerName: "Pengelola Inventaris",
-                      headmasterName: "Kepala Sekolah",
+                      headmasterName: request.letter_number ? 'Kepala Sekolah' : undefined,
                       schoolName: "Darul Ma'arif",
                       schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
-                      letterType: 'official'
+                      letterType: request.letter_number ? 'official' : 'internal',
+                      logoUrl: '/logodm.webp'
                     }}
                   />
                 </PDFViewer>
@@ -659,10 +703,11 @@ export default function RequestDetail() {
                           }))
                         },
                         ownerName: "Pengelola Inventaris",
-                        headmasterName: "Kepala Sekolah",
+                        headmasterName: request.letter_number ? 'Kepala Sekolah' : undefined,
                         schoolName: "Darul Ma'arif",
                         schoolAddress: "Jalan Raya Kaplongan No. 28, Kaplongan, Karangampel, Indramayu",
-                        letterType: 'official'
+                        letterType: request.letter_number ? 'official' : 'internal',
+                        logoUrl: '/logodm.webp'
                       }}
                     />
                   }
