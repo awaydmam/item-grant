@@ -13,7 +13,6 @@ import Checkout from "./pages/Checkout";
 import Orders from "./pages/Orders";
 import RequestDetail from "./pages/RequestDetail";
 import Profile from "./pages/Profile";
-import MyRequests from "./pages/MyRequests";
 import Realtime from "./pages/Realtime";
 import OwnerInbox from "./pages/OwnerInbox";
 import HeadmasterInbox from "./pages/HeadmasterInbox";
@@ -46,7 +45,6 @@ const App = () => (
           <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
           <Route path="/orders/:requestId" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/my-requests" element={<ProtectedRoute><MyRequests /></ProtectedRoute>} />
           <Route path="/realtime" element={<ProtectedRoute><Realtime /></ProtectedRoute>} />
           
           {/* Admin/Owner Routes */}

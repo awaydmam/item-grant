@@ -570,7 +570,7 @@ export default function AddItem() {
 
         const { error } = await supabase
           .from("items")
-          .update(itemData as any)
+          .update(itemData)
           .eq("id", id);
         
         if (error) throw error;
@@ -580,7 +580,7 @@ export default function AddItem() {
           id,
           'updated',
           oldItem,
-          itemData as any,
+          itemData,
           `Item diperbarui. Quantity berubah dari ${oldItem?.quantity} menjadi ${formData.quantity}. Available quantity: ${newAvailableQuantity}`
         );
 
@@ -658,7 +658,7 @@ export default function AddItem() {
           newItem.id,
           'created',
           {},
-          itemData as any,
+          itemData,
           `Item baru ditambahkan dengan quantity ${formData.quantity}`
         );
 

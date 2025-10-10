@@ -47,14 +47,14 @@ interface Department {
 export default function AdminPanel() {
   const navigate = useNavigate();
   const { isAdmin } = useUserRole();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Dialog states
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [deptDialogOpen, setDeptDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
   // Form states
   const [newDeptName, setNewDeptName] = useState("");

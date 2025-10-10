@@ -226,8 +226,8 @@ export default function Checkout() {
                 </Badge>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium text-sm text-gray-900 leading-tight">{item.name}</h4>
-                  {(item as any).code && (
-                    <p className="text-xs text-muted-foreground mt-1">{(item as any).code}</p>
+                  {item.code && (
+                    <p className="text-xs text-muted-foreground mt-1">{item.code}</p>
                   )}
                 </div>
               </div>

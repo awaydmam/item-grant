@@ -155,7 +155,18 @@ export default function RequestDetail() {
   };
 
   const markLetterAsViewed = async () => {
-    // no-op for now
+    if (!request || !requestId) return;
+
+    try {
+      const { error } = await supabase
+        .from("borrow_requests")
+        .update({ letter_viewed_at: new Date().toISOString() })
+        .eq("id", requestId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error marking letter as viewed:", error);
+    }
   };
 
   const handlePreviewLetter = () => {
